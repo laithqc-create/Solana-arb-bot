@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "identifier": "default",
+  "description": "Solana Arbitrage Engine default capabilities",
+  "windows": [],
+  "permissions": []
+}

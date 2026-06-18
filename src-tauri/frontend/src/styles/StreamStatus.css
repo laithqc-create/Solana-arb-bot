@@ -1,0 +1,50 @@
+/* src-tauri/frontend/src/styles/StreamStatus.css */
+
+.stream-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.1);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(0, 255, 136, 0);
+  }
+}
+
+.status-indicator {
+  font-size: 1.5rem;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.status-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.status-description {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}

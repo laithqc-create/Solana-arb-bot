@@ -1,0 +1,48 @@
+[package]
+name = "solana-arb-bot"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+# Tauri & UI
+tauri = { version = "2.0", features = ["custom-protocol", "tray-icon", "devtools"] }
+tauri-build = "2.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+
+# Solana & RPC
+solana-client = "1.17"
+solana-sdk = "1.17"
+solana-program = "1.17"
+solana-rpc-client = "1.17"
+
+# gRPC & Streaming (REMOVED - too complex for now)
+
+# Encryption & Vault
+aes-gcm = "0.10"
+rand = "0.8"
+sha2 = "0.10"
+argon2 = "0.5"
+hex = "0.4"
+
+# HTTP & WebSocket
+reqwest = { version = "0.11", features = ["json"] }
+futures = "0.3"
+
+# Utility
+log = "0.4"
+env_logger = "0.11"
+chrono = "0.4"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+[build-dependencies]
+tauri-build = "2.0"
+
+[features]
+default = []
+mainnet-trading = []
+
+[[bin]]
+name = "solana_arb_backend"
+path = "src/backend/main.rs"

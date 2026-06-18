@@ -1,0 +1,299 @@
+/* src-tauri/frontend/src/styles/ConfigPanel.css */
+
+.config-panel {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+.config-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.config-section {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+}
+
+.config-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.config-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-lg);
+}
+
+.config-group:last-child {
+  margin-bottom: 0;
+}
+
+.config-group label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.config-group span {
+  color: var(--text-primary);
+}
+
+.config-group input,
+.config-group select {
+  padding: var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  transition: border-color 0.3s ease;
+}
+
+.config-group input:focus,
+.config-group select:focus {
+  outline: none;
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.1);
+}
+
+.help-text {
+  font-size: 0.8rem;
+  color: var(--text-tertiary);
+  margin: 0;
+  font-weight: 400;
+}
+
+.info-box {
+  background: linear-gradient(135deg, rgba(0, 200, 200, 0.1), rgba(0, 150, 150, 0.05));
+  border-left: 3px solid var(--info);
+  padding: var(--spacing-lg);
+  border-radius: 4px;
+  margin-top: var(--spacing-lg);
+}
+
+.info-box p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.toggle-vault-btn {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: linear-gradient(135deg, var(--accent-warning), var(--accent-secondary));
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.toggle-vault-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(255, 107, 53, 0.3);
+}
+
+.vault-section {
+  background-color: rgba(255, 107, 53, 0.05);
+  border: 1px solid rgba(255, 107, 53, 0.2);
+  border-radius: 6px;
+  padding: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.vault-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-lg);
+  padding: var(--spacing-lg);
+  background-color: rgba(0, 200, 100, 0.05);
+  border-left: 3px solid var(--success);
+  border-radius: 4px;
+}
+
+.vault-info p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.vault-info code {
+  background-color: var(--bg-tertiary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  color: var(--accent-primary);
+}
+
+.params-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.param {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  background-color: rgba(0, 255, 136, 0.05);
+  border: 1px solid rgba(0, 255, 136, 0.2);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.param-label {
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.param-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+}
+
+.config-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border-color);
+}
+
+.save-btn,
+.reset-btn {
+  flex: 1;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.save-btn {
+  background: linear-gradient(135deg, var(--accent-primary), #00cc66);
+  color: #000;
+}
+
+.save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 136, 0.3);
+}
+
+.reset-btn {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+
+.reset-btn:hover {
+  background-color: rgba(0, 255, 136, 0.1);
+  border-color: var(--accent-primary);
+}
+
+.status-message {
+  padding: var(--spacing-lg);
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+  margin-top: var(--spacing-lg);
+}
+
+.status-message.success {
+  background-color: rgba(0, 255, 136, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+.status-message.error {
+  background-color: rgba(255, 68, 102, 0.15);
+  color: var(--error);
+  border: 1px solid rgba(255, 68, 102, 0.3);
+}
+
+/* Info Panels */
+.info-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--spacing-lg);
+}
+
+.info-card {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: var(--spacing-lg);
+}
+
+.info-card h3 {
+  font-size: 0.95rem;
+  color: var(--accent-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.info-card ul {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.info-card li {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  padding-left: var(--spacing-lg);
+  position: relative;
+}
+
+.info-card li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .config-panel {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .params-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .config-actions {
+    flex-direction: column;
+  }
+}

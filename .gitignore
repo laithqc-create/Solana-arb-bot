@@ -1,0 +1,33 @@
+# Rust
+/target
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Node
+node_modules/
+/src-tauri/frontend/dist
+/src-tauri/frontend/node_modules
+npm-debug.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Tauri
+/src-tauri/target
+
+# Environment
+.env
+.env.local
+
+# Vault (don't commit encrypted keys)
+src/infra/vault/*.enc
+
+# Logs
+*.log
+logs/

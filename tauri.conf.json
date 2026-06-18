@@ -1,0 +1,20 @@
+{
+  "productName": "Solana Arbitrage Engine",
+  "version": "1.0.0",
+  "identifier": "com.solana-arb.bot",
+  "build": {
+    "frontendDist": "../frontend/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Solana Arbitrage Engine",
+        "width": 1600,
+        "height": 900
+      }
+    ]
+  }
+}

@@ -1,0 +1,275 @@
+/* src-tauri/frontend/src/styles/PairMatrix.css */
+
+.pair-matrix {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(255, 107, 53, 0.05));
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+}
+
+.empty-state p {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-md);
+}
+
+.empty-state .subtitle {
+  font-size: 0.9rem;
+  color: var(--text-tertiary);
+}
+
+.pair-group {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.pair-title {
+  padding: var(--spacing-lg);
+  background: linear-gradient(90deg, rgba(0, 255, 136, 0.1), transparent);
+  border-bottom: 1px solid var(--border-light);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  margin: 0;
+}
+
+.opportunity-row {
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-light);
+  background-color: rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.opportunity-row:last-child {
+  border-bottom: none;
+}
+
+.opportunity-row.profitable {
+  border-left: 4px solid var(--success);
+}
+
+.opportunity-row.profitable:hover {
+  background-color: rgba(0, 255, 136, 0.05);
+}
+
+.opportunity-row.unprofitable {
+  border-left: 4px solid var(--warning);
+  opacity: 0.7;
+}
+
+.opportunity-row.unprofitable:hover {
+  background-color: rgba(255, 165, 0, 0.05);
+}
+
+.row-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  gap: var(--spacing-lg);
+  align-items: center;
+}
+
+/* Pool Cell */
+.pool-cell {
+  padding: var(--spacing-md);
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+}
+
+.pool-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+  gap: var(--spacing-md);
+}
+
+.amm-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: currentColor;
+  color: #fff;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.price-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.pool-details {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.detail-row span {
+  color: var(--text-secondary);
+}
+
+.detail-row strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* Spread Cell */
+.spread-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+.spread-arrow {
+  font-size: 1.8rem;
+  color: var(--accent-primary);
+  opacity: 0.7;
+  animation: pulse-arrow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-arrow {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+.spread-metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+}
+
+.raw-spread {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.raw-spread span {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.raw-spread strong {
+  font-size: 1.1rem;
+  color: var(--accent-secondary);
+  font-weight: 700;
+}
+
+.gap-visual {
+  width: 100%;
+  max-width: 80px;
+  height: 6px;
+  background-color: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.gap-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  box-shadow: 0 0 8px currentColor;
+}
+
+/* Profit Cell */
+.profit-cell {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.profit-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-md);
+  background: linear-gradient(135deg, var(--bg-tertiary), rgba(0, 0, 0, 0.3));
+  border: 2px solid var(--warning);
+  border-radius: 8px;
+  min-width: 100px;
+  transition: all 0.3s ease;
+}
+
+.profit-badge.profitable {
+  border-color: var(--success);
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), rgba(0, 200, 100, 0.05));
+}
+
+.profit-pct {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: inherit;
+}
+
+.profit-badge.profitable .profit-pct {
+  color: var(--success);
+}
+
+.profit-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-tertiary);
+  margin-top: var(--spacing-xs);
+}
+
+/* Responsive Grid */
+@media (max-width: 1200px) {
+  .row-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .spread-cell {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    justify-content: space-around;
+  }
+
+  .profit-cell {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .row-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .pool-cell {
+    padding: var(--spacing-md);
+  }
+
+  .opportunity-row {
+    padding: var(--spacing-md);
+  }
+}

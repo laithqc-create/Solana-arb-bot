@@ -37,7 +37,7 @@ chrono = "0.4"
 uuid = { version = "1.0", features = ["v4", "serde"] }
 
 [build-dependencies]
-tauri-build = "2.0"
+tauri-build = { version = "2.0", features = [] }
 
 [features]
 default = []
@@ -46,3 +46,10 @@ mainnet-trading = []
 [[bin]]
 name = "solana_arb_backend"
 path = "src/backend/main.rs"
+
+# Reduce memory usage during compilation
+[profile.release]
+opt-level = 2
+lto = false
+codegen-units = 256
+strip = true

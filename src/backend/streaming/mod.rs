@@ -5,6 +5,25 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use log::{info, warn};
 
+#[derive(Debug, Clone)]
+pub enum StreamError {
+    ConnectionFailed(String),
+    ConfigError(String),
+    Other(String),
+}
+
+impl std::fmt::Display for StreamError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StreamError::ConnectionFailed(msg) => write!(f, "Connection failed: {}", msg),
+            StreamError::ConfigError(msg) => write!(f, "Config error: {}", msg),
+            StreamError::Other(msg) => write!(f, "Error: {}", msg),
+        }
+    }
+}
+
+impl std::error::Error for StreamError {}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum StreamStatus {
     GeyserConnected,
@@ -21,7 +40,7 @@ pub struct GeyserStreamManager {
 }
 
 impl GeyserStreamManager {
-    pub async fn new(vault: Arc<SecureVault>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(vault: Arc<SecureVault>) -> Result<Self, String> {
         Ok(GeyserStreamManager {
             vault,
             status: Arc::new(RwLock::new(StreamStatus::Disconnected)),
@@ -31,11 +50,12 @@ impl GeyserStreamManager {
     }
     
     /// Start Geyser gRPC stream with automatic fallover
-    pub async fn start_stream(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn start_stream(&self) -> Result<(), String> {
         info!("🔗 Attempting Geyser gRPC connection...");
         
         // Load config
-        let config = self.vault.load_config().await?;
+        let config = self.vault.load_config().await
+            .map_err(|e| format!("Failed to load config: {}", e))?;
         
         // Attempt Geyser connection
         match self.connect_geyser(&config.geyser_rpc_url).await {
@@ -59,7 +79,7 @@ impl GeyserStreamManager {
     }
     
     /// Connect to Yellowstone Geyser gRPC
-    async fn connect_geyser(&self, url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    async fn connect_geyser(&self, url: &str) -> Result<(), String> {
         // Simulated gRPC connection
         // In production, use tonic to connect to actual Geyser endpoint
         
@@ -67,7 +87,7 @@ impl GeyserStreamManager {
             info!("✅ Connected to Geyser: {}", url);
             Ok(())
         } else {
-            Err("Invalid Geyser URL".into())
+            Err("Invalid Geyser URL".to_string())
         }
     }
     
@@ -108,7 +128,7 @@ impl GeyserStreamManager {
     }
     
     /// Start JSON-RPC polling as fallback
-    async fn start_rpc_polling(&self, url: &str) -> Result<(), Box<dyn std::error::Error>> {
+    async fn start_rpc_polling(&self, url: &str) -> Result<(), String> {
         info!("🔄 Started JSON-RPC polling: {}", url);
         
         // In production, this would make HTTP requests to the RPC endpoint

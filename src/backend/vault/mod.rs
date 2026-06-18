@@ -35,12 +35,13 @@ pub struct SecureVault {
 }
 
 impl SecureVault {
-    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new() -> Result<Self, String> {
         let vault_dir = PathBuf::from("src/infra/vault");
         
         // Create vault directory if it doesn't exist
         if !vault_dir.exists() {
-            fs::create_dir_all(&vault_dir)?;
+            fs::create_dir_all(&vault_dir)
+                .map_err(|e| format!("Failed to create vault directory: {}", e))?;
             info!("✅ Created vault directory: {}", vault_dir.display());
         }
         
@@ -51,12 +52,14 @@ impl SecureVault {
     }
     
     /// Load or initialize config
-    pub async fn load_config(&self) -> Result<VaultConfig, Box<dyn std::error::Error>> {
+    pub async fn load_config(&self) -> Result<VaultConfig, String> {
         let config_path = self.vault_path.join("config.json");
         
         if config_path.exists() {
-            let content = fs::read_to_string(&config_path)?;
-            let config: VaultConfig = serde_json::from_str(&content)?;
+            let content = fs::read_to_string(&config_path)
+                .map_err(|e| format!("Failed to read config: {}", e))?;
+            let config: VaultConfig = serde_json::from_str(&content)
+                .map_err(|e| format!("Failed to parse config: {}", e))?;
             info!("✅ Loaded vault config");
             Ok(config)
         } else {
@@ -68,10 +71,12 @@ impl SecureVault {
     }
     
     /// Save config to disk
-    pub async fn save_config(&self, config: &VaultConfig) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn save_config(&self, config: &VaultConfig) -> Result<(), String> {
         let config_path = self.vault_path.join("config.json");
-        let content = serde_json::to_string_pretty(&config)?;
-        fs::write(&config_path, content)?;
+        let content = serde_json::to_string_pretty(&config)
+            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        fs::write(&config_path, content)
+            .map_err(|e| format!("Failed to write config: {}", e))?;
         info!("✅ Saved vault config");
         Ok(())
     }

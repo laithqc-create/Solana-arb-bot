@@ -1,6 +1,6 @@
 // src-tauri/frontend/src/App.tsx
 import { useEffect, useState } from 'react'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 import PairMatrix from './components/PairMatrix'
 import StreamStatus from './components/StreamStatus'
 import ConfigPanel from './components/ConfigPanel'

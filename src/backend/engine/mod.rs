@@ -39,7 +39,7 @@ pub struct ArbitrageEngine {
 }
 
 impl ArbitrageEngine {
-    pub async fn new(vault: Arc<SecureVault>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(vault: Arc<SecureVault>) -> Result<Self, String> {
         Ok(ArbitrageEngine {
             vault,
             pools: Arc::new(tokio::sync::RwLock::new(HashMap::new())),

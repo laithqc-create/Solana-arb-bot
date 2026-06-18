@@ -13,6 +13,10 @@ pub struct IPCHandler {
     vault: Arc<SecureVault>,
 }
 
+// IPCHandler is Send + Sync because all its fields are Arc (thread-safe shared pointers)
+unsafe impl Send for IPCHandler {}
+unsafe impl Sync for IPCHandler {}
+
 impl IPCHandler {
     pub fn new(
         engine: Arc<RwLock<ArbitrageEngine>>,
@@ -26,19 +30,18 @@ impl IPCHandler {
         }
     }
     
-    pub async fn start_ipc_server(&self) -> Result<(), Box<dyn std::error::Error>> {
-        info!("🚀 IPC server starting on localhost:9999");
+    pub async fn start_ipc_server(&self) -> Result<(), String> {
+        info!("🚀 IPC server starting");
         
         // In a real implementation, this would use unix domain sockets or named pipes
-        // For now, we'll simulate the IPC interface
-        
-        // Tauri will communicate via these command handlers:
-        // - get_opportunities
-        // - get_stream_status
-        // - update_config
-        // - get_vault_config
+        // For Tauri integration, we use the invoke! mechanism instead
         
         Ok(())
+    }
+    
+    /// Start the stream manager
+    pub async fn start_stream(&self) -> Result<(), String> {
+        self.stream_manager.start_stream().await
     }
     
     /// Handle incoming Tauri command: get_opportunities
@@ -69,7 +72,7 @@ impl IPCHandler {
             config.geyser_rpc_url = geyser_url;
             config.backup_rpc_url = backup_url;
             self.vault.save_config(&config).await?;
-            Ok::<_, Box<dyn std::error::Error>>(())
+            Ok::<_, String>(())
         }.await {
             Ok(_) => {
                 json!({
@@ -80,7 +83,7 @@ impl IPCHandler {
             Err(e) => {
                 json!({
                     "success": false,
-                    "error": format!("{}", e),
+                    "error": e,
                 }).to_string()
             }
         }

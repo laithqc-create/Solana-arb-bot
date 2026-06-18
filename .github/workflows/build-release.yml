@@ -32,11 +32,9 @@ jobs:
           cache-on-failure: true
       
       - name: Install Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
-          cache-dependency-path: 'src-tauri/frontend/package-lock.json'
       
       - name: Install npm dependencies
         working-directory: src-tauri/frontend
@@ -47,11 +45,11 @@ jobs:
         run: npm run build
       
       - name: Build Rust backend (Debug first)
-        run: cargo build --locked
+        run: cargo build
         timeout-minutes: 60
       
       - name: Build Rust backend (Release)
-        run: cargo build --release --locked
+        run: cargo build --release
         timeout-minutes: 120
       
       - name: Upload build artifacts

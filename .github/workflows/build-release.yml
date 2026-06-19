@@ -31,6 +31,9 @@ jobs:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 256
           CARGO_PROFILE_RELEASE_LTO: false
       
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --locked
+      
       - name: Build Tauri application (.exe installer)
         run: cargo tauri build
       

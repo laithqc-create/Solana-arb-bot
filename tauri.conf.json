@@ -6,7 +6,7 @@
     "frontendDist": "src-tauri/frontend/dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeBuildCommand": "cd src-tauri/frontend && npm install && npm run build && cd ../.."
   },
   "app": {
     "windows": [
@@ -22,8 +22,13 @@
     "targets": [
       "nsis"
     ],
-    "icon": [
-      "icons/icon.png"
+    "windows": [
+      {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "signingIdentity": null,
+        "timestampUrl": ""
+      }
     ]
   }
 }

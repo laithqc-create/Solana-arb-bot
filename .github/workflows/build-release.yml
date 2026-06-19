@@ -30,5 +30,3 @@ jobs:
         env:
           CARGO_PROFILE_RELEASE_CODEGEN_UNITS: 256
           CARGO_PROFILE_RELEASE_LTO: false
-          TAURI_SKIP_VALIDATE: true
-          TAURI_SKIP_WINRES_ICON: "1"

@@ -1,6 +1,9 @@
 use tauri_build::build;
 
 fn main() {
-    // Build Tauri app - this generates the .exe installer
+    // Remove icon from build context to avoid parsing errors
+    // Tauri will use its default icon
+    std::env::set_var("TAURI_SKIP_WINRES_ICON", "1");
+    
     build();
 }

@@ -6,7 +6,7 @@
     "frontendDist": "src-tauri/frontend/dist",
     "devUrl": "http://localhost:5173",
     "beforeDevCommand": "",
-    "beforeBuildCommand": "cd src-tauri/frontend && npm install && npm run build && cd ../.."
+    "beforeBuildCommand": "",
   },
   "app": {
     "windows": [

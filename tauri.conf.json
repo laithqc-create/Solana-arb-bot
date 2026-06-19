@@ -19,16 +19,6 @@
   },
   "bundle": {
     "active": true,
-    "targets": [
-      "nsis"
-    ],
-    "windows": [
-      {
-        "certificateThumbprint": null,
-        "digestAlgorithm": "sha256",
-        "signingIdentity": null,
-        "timestampUrl": ""
-      }
-    ]
+    "targets": ["nsis"]
   }
 }

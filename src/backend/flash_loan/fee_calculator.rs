@@ -114,7 +114,7 @@ impl FlashLoanFeeCalculator {
 }
 
 /// Protocol information
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ProtocolInfo {
     pub name: String,
     pub fee_bps: u64,

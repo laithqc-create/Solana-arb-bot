@@ -8,12 +8,14 @@
 ///
 /// All execute atomically or none at all (no partial execution)
 
-use solana_sdk::{
-    instruction::Instruction,
-    pubkey::Pubkey,
-    transaction::Transaction,
-};
-use log::{info, warn, error};
+pub mod client;
+pub mod tip;
+
+pub use client::{JitoBundleClient, JitoConfig};
+pub use tip::{JitoTipCalculator, TipStrategy};
+
+use solana_sdk::pubkey::Pubkey;
+use log::{info, warn};
 use std::fmt;
 
 /// Bundle status

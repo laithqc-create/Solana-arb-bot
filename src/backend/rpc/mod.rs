@@ -208,24 +208,19 @@ impl RpcClientManager {
         let current_idx = *self.current_endpoint.read().await;
 
         for (i, endpoint) in self.all_endpoints.iter().enumerate().skip(current_idx + 1) {
-            match RpcClient::new(endpoint.http_url.clone()) {
-                Ok(client) => {
-                    // Try to verify the connection
-                    if client.get_version().is_ok() {
-                        info!("🔄 Switched to RPC: {} ({})", endpoint.name, endpoint.http_url);
+            let client = RpcClient::new(endpoint.http_url.clone());
+            
+            // Try to verify the connection
+            if client.get_version().is_ok() {
+                info!("🔄 Switched to RPC: {} ({})", endpoint.name, endpoint.http_url);
 
-                        let mut current = self.current_endpoint.write().await;
-                        *current = i;
+                let mut current = self.current_endpoint.write().await;
+                *current = i;
 
-                        let mut rpc = self.current_client.write().await;
-                        *rpc = client;
+                let mut rpc = self.current_client.write().await;
+                *rpc = client;
 
-                        return Ok(endpoint.name.clone());
-                    }
-                }
-                Err(e) => {
-                    warn!("⚠️ Cannot connect to {}: {}", endpoint.name, e);
-                }
+                return Ok(endpoint.name.clone());
             }
         }
 

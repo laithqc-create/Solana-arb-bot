@@ -11,10 +11,8 @@ use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::Signature,
-    signer::Signer,
     transaction::Transaction,
 };
-use spl_token::state::Account as TokenAccount;
 use std::str::FromStr;
 
 pub mod fee_calculator;

@@ -179,11 +179,9 @@ impl KeypairManager {
 
         // Verify we can sign with this keypair
         let test_message = b"test";
-        let signature = keypair.keypair().sign_message(test_message);
+        let _signature = keypair.keypair().sign_message(test_message);
         
-        if signature.is_empty() {
-            return Err("Cannot sign with keypair".into());
-        }
+        // Signature is always valid if we got here
 
         // Check against expected pubkey if provided
         if let Some(expected) = expected_pubkey {

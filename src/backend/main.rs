@@ -15,15 +15,14 @@ mod jito;
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
 use streaming::GeyserStreamManager;
-use flash_loan::FlashLoanManager;
 use keypair::KeypairManager;
-use rpc::{RpcClientManager, RpcConfig};
+use rpc::RpcClientManager;
 use swap::{AtomicSwapManager, AtomicSwapCycle, SwapStep, SwapProtocol};
-use jito::{JitoBundleBuilder, JitoBundle, JitoBundleClient, JitoConfig};
+use jito::{JitoBundleBuilder, JitoBundleClient, JitoConfig};
 use jito::tip::{JitoTipCalculator, TipStrategy};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use log::{info, error, warn};
+use log::{info, warn};
 
 // Initialize logging
 fn init_logging() {

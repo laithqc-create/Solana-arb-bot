@@ -10,6 +10,7 @@ mod flash_loan;
 mod keypair;
 mod rpc;
 mod swap;
+mod jito;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
@@ -18,9 +19,11 @@ use flash_loan::FlashLoanManager;
 use keypair::KeypairManager;
 use rpc::{RpcClientManager, RpcConfig};
 use swap::{AtomicSwapManager, AtomicSwapCycle, SwapStep, SwapProtocol};
+use jito::{JitoBundleBuilder, JitoBundle, JitoBundleClient, JitoConfig};
+use jito::tip::{JitoTipCalculator, TipStrategy};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use log::{info, error};
+use log::{info, error, warn};
 
 // Initialize logging
 fn init_logging() {
@@ -400,6 +403,139 @@ async fn estimate_swap_output(
     }).to_string())
 }
 
+// Tauri command handler: calculate Jito tip
+#[tauri::command]
+async fn calculate_jito_tip(
+    gross_profit: String,
+    strategy: String,
+) -> Result<String, String> {
+    let profit: u64 = gross_profit
+        .parse()
+        .map_err(|_| "Invalid profit amount".to_string())?;
+
+    let tip_strategy = match strategy.to_lowercase().as_str() {
+        "conservative" => TipStrategy::Conservative,
+        "balanced" => TipStrategy::Balanced,
+        "aggressive" => TipStrategy::Aggressive,
+        _ => TipStrategy::Balanced,
+    };
+
+    let calculator = JitoTipCalculator::default();
+    match calculator.calculate_tip_with_strategy(profit, tip_strategy) {
+        Ok(result) => {
+            info!(
+                "💸 Calculated tip: jito={}, keeper={}, strategy={}",
+                result.jito_tip, result.final_profit, result.strategy
+            );
+            Ok(serde_json::json!({
+                "gross_profit": result.gross_profit,
+                "jito_tip": result.jito_tip,
+                "final_profit": result.final_profit,
+                "tip_percentage_bps": result.tip_percentage_bps,
+                "keeper_profit_bps": result.keeper_profit_bps(),
+                "keeper_roi_percent": format!("{:.2}", result.keeper_roi_percent()),
+                "strategy": result.strategy
+            }).to_string())
+        }
+        Err(e) => {
+            warn!("⚠️ Tip calculation failed: {}", e);
+            Err(format!("Tip calculation failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: calculate competitive tip
+#[tauri::command]
+async fn calculate_competitive_tip(
+    gross_profit: String,
+) -> Result<String, String> {
+    let profit: u64 = gross_profit
+        .parse()
+        .map_err(|_| "Invalid profit amount".to_string())?;
+
+    let calculator = JitoTipCalculator::default();
+    match calculator.calculate_competitive_tip(profit) {
+        Ok(result) => {
+            info!(
+                "🎯 Competitive tip: jito={}, keeper={}",
+                result.jito_tip, result.final_profit
+            );
+            Ok(serde_json::json!({
+                "gross_profit": result.gross_profit,
+                "jito_tip": result.jito_tip,
+                "final_profit": result.final_profit,
+                "tip_percentage_bps": result.tip_percentage_bps,
+                "strategy": result.strategy,
+                "keeper_roi_percent": format!("{:.2}", result.keeper_roi_percent())
+            }).to_string())
+        }
+        Err(e) => {
+            warn!("⚠️ Competitive tip calculation failed: {}", e);
+            Err(format!("Calculation failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: create Jito bundle
+#[tauri::command]
+async fn create_jito_bundle(
+    bundle_id: String,
+    jito_tip: String,
+) -> Result<String, String> {
+    let tip: u64 = jito_tip
+        .parse()
+        .map_err(|_| "Invalid tip amount".to_string())?;
+
+    let payer = solana_sdk::pubkey::Pubkey::new_unique();
+
+    let result = JitoBundleBuilder::new(bundle_id.clone())
+        .with_payer(payer)
+        .with_tip(tip)
+        .build();
+
+    match result {
+        Ok(bundle) => {
+            info!(
+                "📦 Created bundle: id={}, tip={}, txs={}",
+                bundle.bundle_id, bundle.jito_tip, bundle.transaction_count()
+            );
+            Ok(serde_json::json!({
+                "bundle_id": bundle.bundle_id,
+                "status": "created",
+                "jito_tip": bundle.jito_tip,
+                "transaction_count": bundle.transaction_count(),
+                "bundle_size_bytes": bundle.bundle_size()
+            }).to_string())
+        }
+        Err(e) => {
+            error!("❌ Bundle creation failed: {}", e);
+            Err(format!("Bundle creation failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: get Jito configuration
+#[tauri::command]
+async fn get_jito_config() -> Result<String, String> {
+    Ok(serde_json::json!({
+        "endpoints": {
+            "mainnet": "https://mainnet.block-engine.jito.wtf/api/v1/bundles",
+            "testnet": "https://testnet.block-engine.jito.wtf/api/v1/bundles"
+        },
+        "tip_strategies": {
+            "conservative": "85% to Jito (for large profits)",
+            "balanced": "87.5% to Jito (for medium profits)",
+            "aggressive": "90% to Jito (for small profits)"
+        },
+        "bundle_steps": [
+            "1. Flash loan borrow",
+            "2. Swap 1 (buy low)",
+            "3. Swap 2 (sell high)",
+            "4. Repay flash loan"
+        ]
+    }).to_string())
+}
+
 #[tokio::main]
 async fn main() {
     info!("🚀 Solana Arbitrage Engine v1.0.0 Starting...");
@@ -469,6 +605,10 @@ async fn main() {
             validate_swap_opportunity,
             calculate_arbitrage_metrics,
             estimate_swap_output,
+            calculate_jito_tip,
+            calculate_competitive_tip,
+            create_jito_bundle,
+            get_jito_config,
         ])
         .setup(move |_app| {
             info!("✅ Tauri frontend connected successfully");

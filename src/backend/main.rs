@@ -9,6 +9,7 @@ mod streaming;
 mod flash_loan;
 mod keypair;
 mod rpc;
+mod swap;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
@@ -16,6 +17,7 @@ use streaming::GeyserStreamManager;
 use flash_loan::FlashLoanManager;
 use keypair::KeypairManager;
 use rpc::{RpcClientManager, RpcConfig};
+use swap::{AtomicSwapManager, AtomicSwapCycle, SwapStep, SwapProtocol};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, error};
@@ -234,6 +236,170 @@ async fn get_rpc_config_info() -> Result<String, String> {
     }).to_string())
 }
 
+// Tauri command handler: validate atomic swap opportunity
+#[tauri::command]
+async fn validate_swap_opportunity(
+    loan_amount: String,
+    loan_token: String,
+    swap1_input_amount: String,
+    swap1_output_amount: String,
+    swap2_input_amount: String,
+    swap2_output_amount: String,
+    flash_loan_fee: String,
+    expected_profit: String,
+) -> Result<String, String> {
+    // Parse inputs
+    let flash_amount: u64 = loan_amount
+        .parse()
+        .map_err(|_| "Invalid loan amount".to_string())?;
+    
+    let swap1_in: u64 = swap1_input_amount
+        .parse()
+        .map_err(|_| "Invalid swap1 input".to_string())?;
+    
+    let swap1_out: u64 = swap1_output_amount
+        .parse()
+        .map_err(|_| "Invalid swap1 output".to_string())?;
+    
+    let swap2_in: u64 = swap2_input_amount
+        .parse()
+        .map_err(|_| "Invalid swap2 input".to_string())?;
+    
+    let swap2_out: u64 = swap2_output_amount
+        .parse()
+        .map_err(|_| "Invalid swap2 output".to_string())?;
+    
+    let fee: u64 = flash_loan_fee
+        .parse()
+        .map_err(|_| "Invalid fee".to_string())?;
+    
+    let profit: u64 = expected_profit
+        .parse()
+        .map_err(|_| "Invalid profit".to_string())?;
+
+    // Create swap steps
+    let token_a = solana_sdk::pubkey::Pubkey::new_unique();
+    let token_b = solana_sdk::pubkey::Pubkey::new_unique();
+
+    let swap_1 = SwapStep::new(
+        SwapProtocol::Raydium,
+        token_a,
+        token_b,
+        swap1_in,
+        swap1_out,
+        solana_sdk::pubkey::Pubkey::new_unique(),
+    );
+
+    let swap_2 = SwapStep::new(
+        SwapProtocol::Orca,
+        token_b,
+        token_a,
+        swap2_in,
+        swap2_out,
+        solana_sdk::pubkey::Pubkey::new_unique(),
+    );
+
+    // Create cycle
+    let cycle = AtomicSwapCycle::new(
+        flash_amount,
+        token_a,
+        swap_1,
+        swap_2,
+        fee,
+        profit,
+    );
+
+    // Validate
+    let manager = AtomicSwapManager::default();
+    match manager.validate_opportunity(&cycle) {
+        Ok(_) => {
+            info!("✅ Opportunity validated: net_profit={}", cycle.net_profit());
+            Ok(serde_json::json!({
+                "valid": true,
+                "net_profit": cycle.net_profit(),
+                "flash_loan_fee": fee,
+                "expected_profit": profit,
+                "swap1_slippage_bps": cycle.swap_1_slippage_bps(),
+                "swap2_slippage_bps": cycle.swap_2_slippage_bps(),
+                "message": "Opportunity meets all requirements"
+            }).to_string())
+        }
+        Err(e) => {
+            warn!("⚠️ Opportunity validation failed: {}", e);
+            Ok(serde_json::json!({
+                "valid": false,
+                "error": e.to_string(),
+                "message": format!("Validation failed: {}", e)
+            }).to_string())
+        }
+    }
+}
+
+// Tauri command handler: calculate arbitrage metrics
+#[tauri::command]
+async fn calculate_arbitrage_metrics(
+    buy_price: String,
+    sell_price: String,
+    amount: String,
+    fee_bps: String,
+) -> Result<String, String> {
+    let buy: u64 = buy_price.parse().map_err(|_| "Invalid buy price")?;
+    let sell: u64 = sell_price.parse().map_err(|_| "Invalid sell price")?;
+    let amt: u64 = amount.parse().map_err(|_| "Invalid amount")?;
+    let fee: u64 = fee_bps.parse().map_err(|_| "Invalid fee")?;
+
+    let manager = AtomicSwapManager::default();
+
+    // Check if profitable
+    let is_profitable = manager.is_spread_profitable(buy, sell, fee);
+
+    // Calculate spread
+    let spread_bps = if sell > buy {
+        ((sell as u128 - buy as u128) * 10000 / sell as u128) as u64
+    } else {
+        0
+    };
+
+    // Calculate gross profit
+    let gross_profit = amt.saturating_mul(spread_bps) / 10000;
+    let net_profit = gross_profit.saturating_sub(amt.saturating_mul(fee) / 10000);
+
+    Ok(serde_json::json!({
+        "buy_price": buy,
+        "sell_price": sell,
+        "spread_bps": spread_bps,
+        "is_profitable": is_profitable,
+        "gross_profit": gross_profit,
+        "fee": amt.saturating_mul(fee) / 10000,
+        "net_profit": net_profit,
+        "roi_bps": if net_profit > 0 { (net_profit as u128 * 10000 / amt as u128) as u64 } else { 0 }
+    }).to_string())
+}
+
+// Tauri command handler: estimate output with slippage
+#[tauri::command]
+async fn estimate_swap_output(
+    input_amount: String,
+    expected_output: String,
+    slippage_bps: String,
+) -> Result<String, String> {
+    let input: u64 = input_amount.parse().map_err(|_| "Invalid input")?;
+    let output: u64 = expected_output.parse().map_err(|_| "Invalid output")?;
+    let slip: u64 = slippage_bps.parse().map_err(|_| "Invalid slippage")?;
+
+    let manager = AtomicSwapManager::default();
+    let final_output = manager.estimate_output_with_slippage(input, output, slip);
+
+    Ok(serde_json::json!({
+        "input_amount": input,
+        "expected_output": output,
+        "slippage_bps": slip,
+        "slippage_amount": output.saturating_sub(final_output),
+        "final_output": final_output,
+        "efficiency_percent": (final_output as u128 * 100 / output as u128) as u64
+    }).to_string())
+}
+
 #[tokio::main]
 async fn main() {
     info!("🚀 Solana Arbitrage Engine v1.0.0 Starting...");
@@ -300,6 +466,9 @@ async fn main() {
             initialize_rpc,
             check_rpc_health,
             get_rpc_config_info,
+            validate_swap_opportunity,
+            calculate_arbitrage_metrics,
+            estimate_swap_output,
         ])
         .setup(move |_app| {
             info!("✅ Tauri frontend connected successfully");

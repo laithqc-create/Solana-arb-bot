@@ -6,10 +6,12 @@ mod parsers;
 mod vault;
 mod ipc;
 mod streaming;
+mod flash_loan;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
 use streaming::GeyserStreamManager;
+use flash_loan::FlashLoanManager;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, error};
@@ -47,6 +49,45 @@ async fn update_config(
 #[tauri::command]
 async fn get_vault_config(ipc: tauri::State<'_, Arc<IPCHandler>>) -> Result<String, String> {
     Ok(ipc.handle_get_vault_config().await)
+}
+
+// Tauri command handler: get flash loan fee
+#[tauri::command]
+async fn get_flash_loan_fee(protocol: String, amount: String) -> Result<String, String> {
+    let amount_u64: u64 = amount.parse()
+        .map_err(|_| "Invalid amount format".to_string())?;
+    
+    let calculator = flash_loan::FlashLoanFeeCalculator::new();
+    let fee = calculator.calculate_fee(&protocol, amount_u64)
+        .map_err(|e| format!("Fee calculation error: {}", e))?;
+    
+    Ok(serde_json::json!({
+        "protocol": protocol,
+        "amount": amount_u64,
+        "fee": fee,
+        "fee_percentage": flash_loan::FlashLoanFeeCalculator::format_fee_percentage(
+            calculator.get_protocol_info(&protocol)
+                .map(|info| info.fee_bps)
+                .unwrap_or(0)
+        )
+    }).to_string())
+}
+
+// Tauri command handler: get supported flash loan protocols
+#[tauri::command]
+async fn get_flash_loan_protocols() -> Result<String, String> {
+    let calculator = flash_loan::FlashLoanFeeCalculator::new();
+    let protocols = calculator.get_supported_protocols();
+    
+    let protocol_infos: Result<Vec<_>, _> = protocols
+        .iter()
+        .map(|p| calculator.get_protocol_info(p))
+        .collect();
+    
+    match protocol_infos {
+        Ok(infos) => Ok(serde_json::to_string(&infos).unwrap_or_default()),
+        Err(e) => Err(format!("Failed to get protocol info: {}", e)),
+    }
 }
 
 #[tokio::main]
@@ -107,6 +148,8 @@ async fn main() {
             get_stream_status,
             update_config,
             get_vault_config,
+            get_flash_loan_fee,
+            get_flash_loan_protocols,
         ])
         .setup(move |_app| {
             info!("✅ Tauri frontend connected successfully");

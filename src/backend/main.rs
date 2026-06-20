@@ -8,12 +8,14 @@ mod ipc;
 mod streaming;
 mod flash_loan;
 mod keypair;
+mod rpc;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
 use streaming::GeyserStreamManager;
 use flash_loan::FlashLoanManager;
 use keypair::KeypairManager;
+use rpc::{RpcClientManager, RpcConfig};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, error};
@@ -160,6 +162,78 @@ async fn estimate_balance_requirement(
     }).to_string())
 }
 
+// Tauri command handler: initialize RPC manager
+#[tauri::command]
+async fn initialize_rpc(helius_api_key: String) -> Result<String, String> {
+    match RpcClientManager::new_with_helius(&helius_api_key) {
+        Ok(manager) => {
+            let endpoints = manager.get_endpoints();
+            info!("✅ RPC Manager initialized with {} endpoints", endpoints.len());
+            Ok(serde_json::json!({
+                "success": true,
+                "endpoints": endpoints,
+                "message": "RPC manager initialized successfully"
+            }).to_string())
+        }
+        Err(e) => {
+            error!("❌ Failed to initialize RPC: {}", e);
+            Err(format!("RPC initialization failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: check RPC health
+#[tauri::command]
+async fn check_rpc_health(helius_api_key: String) -> Result<String, String> {
+    match RpcClientManager::new_with_helius(&helius_api_key) {
+        Ok(manager) => {
+            match manager.check_health().await {
+                Ok(_) => {
+                    let endpoint = manager.get_current_endpoint_name().await;
+                    Ok(serde_json::json!({
+                        "healthy": true,
+                        "endpoint": endpoint,
+                        "message": "RPC connection healthy"
+                    }).to_string())
+                }
+                Err(e) => {
+                    warn!("⚠️ RPC health check failed: {}", e);
+                    Ok(serde_json::json!({
+                        "healthy": false,
+                        "error": e.to_string(),
+                        "message": "RPC connection unhealthy"
+                    }).to_string())
+                }
+            }
+        }
+        Err(e) => {
+            error!("❌ Failed to check RPC health: {}", e);
+            Err(format!("RPC health check failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: get RPC configuration options
+#[tauri::command]
+async fn get_rpc_config_info() -> Result<String, String> {
+    Ok(serde_json::json!({
+        "networks": ["mainnet", "testnet", "devnet"],
+        "helius_url": "https://www.helius.dev",
+        "helius_free_tier": "100K requests/day",
+        "environment_variables": {
+            "HELIUS_API_KEY": "Required for mainnet/testnet",
+            "SOLANA_NETWORK": "Optional: mainnet (default), testnet, or devnet"
+        },
+        "setup_steps": [
+            "1. Go to https://www.helius.dev",
+            "2. Sign up for free account",
+            "3. Create project → copy API key",
+            "4. Set HELIUS_API_KEY environment variable",
+            "5. Restart application"
+        ]
+    }).to_string())
+}
+
 #[tokio::main]
 async fn main() {
     info!("🚀 Solana Arbitrage Engine v1.0.0 Starting...");
@@ -223,6 +297,9 @@ async fn main() {
             load_keypair_from_env,
             load_keypair_with_fallback,
             estimate_balance_requirement,
+            initialize_rpc,
+            check_rpc_health,
+            get_rpc_config_info,
         ])
         .setup(move |_app| {
             info!("✅ Tauri frontend connected successfully");

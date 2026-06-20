@@ -11,9 +11,6 @@
 pub mod client;
 pub mod tip;
 
-pub use client::{JitoBundleClient, JitoConfig};
-pub use tip::{JitoTipCalculator, TipStrategy};
-
 use solana_sdk::pubkey::Pubkey;
 use log::{info, warn};
 use std::fmt;

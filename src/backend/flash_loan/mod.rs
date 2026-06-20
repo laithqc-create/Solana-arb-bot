@@ -13,6 +13,7 @@ use solana_sdk::{
     signature::Signature,
     transaction::Transaction,
 };
+use spl_token::state::Account as TokenAccount;
 use std::str::FromStr;
 
 pub mod fee_calculator;
@@ -104,7 +105,7 @@ impl FlashLoanManager {
         &self,
         pool_address: &str,
         token_mint: &str,
-        amount: u64,
+        _amount: u64,
         instruction_data: Vec<u8>,
     ) -> Result<Instruction, Box<dyn std::error::Error>> {
         let pool = Pubkey::from_str(pool_address)?;

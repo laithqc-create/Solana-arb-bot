@@ -107,7 +107,9 @@ impl JitoBundleClient {
         mut bundle: JitoBundle,
     ) -> Result<BundleSubmissionResponse, JitoError> {
         // Validate bundle
-        bundle.validate()?;
+        if let Err(e) = bundle.validate() {
+            return Err(JitoError::BundleValidationFailed(e.to_string()));
+        }
 
         // Mark as submitted
         bundle.mark_submitted();

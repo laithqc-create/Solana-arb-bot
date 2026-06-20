@@ -18,11 +18,12 @@ use streaming::GeyserStreamManager;
 use keypair::KeypairManager;
 use rpc::RpcClientManager;
 use swap::{AtomicSwapManager, AtomicSwapCycle, SwapStep, SwapProtocol};
-use jito::{JitoBundleBuilder, JitoBundleClient, JitoConfig};
+use jito::JitoBundleBuilder;
+use jito::client::{JitoBundleClient, JitoConfig};
 use jito::tip::{JitoTipCalculator, TipStrategy};
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use log::{info, warn};
+use log::{info, warn, error};
 
 // Initialize logging
 fn init_logging() {
@@ -242,7 +243,7 @@ async fn get_rpc_config_info() -> Result<String, String> {
 #[tauri::command]
 async fn validate_swap_opportunity(
     loan_amount: String,
-    loan_token: String,
+    _loan_token: String,
     swap1_input_amount: String,
     swap1_output_amount: String,
     swap2_input_amount: String,

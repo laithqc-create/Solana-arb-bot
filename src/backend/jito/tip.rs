@@ -54,7 +54,7 @@ impl fmt::Display for TipStrategy {
             TipStrategy::Conservative => write!(f, "Conservative (85%)"),
             TipStrategy::Balanced => write!(f, "Balanced (87.5%)"),
             TipStrategy::Aggressive => write!(f, "Aggressive (90%)"),
-            TipStrategy::Custom(bps) => write!(f, "Custom ({}%)", pct),
+            TipStrategy::Custom(_bps) => write!(f, "Custom ({}%)", pct),
         }
     }
 }

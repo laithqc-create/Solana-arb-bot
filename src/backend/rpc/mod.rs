@@ -327,7 +327,7 @@ impl RpcClientManager {
 
         let new_client = RpcClient::new(helius_http);
 
-        let mut primary = &mut self.primary_endpoint;
+        let primary = &mut self.primary_endpoint;
         primary.http_url = new_primary.http_url;
         primary.ws_url = new_primary.ws_url;
 

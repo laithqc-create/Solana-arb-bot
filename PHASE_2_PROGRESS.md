@@ -36,13 +36,13 @@
 - **Status:** ✅ COMPLETE
 - **Est. Time:** 3-4 days → **COMPLETED IN 1 SESSION**
 
-#### Task 1.2: Keypair & Vault Integration ⏳
-- [ ] Update vault to support keypair encryption
-- [ ] Create keypair loader from environment
-- [ ] Add secure signing module
-- [ ] Test keypair read/write cycle
-- **Status:** Not started
-- **Est. Time:** 2 days
+#### Task 1.2: Keypair & Vault Integration ✅
+- [x] Update vault to support keypair encryption
+- [x] Create keypair loader from environment
+- [x] Add secure signing module
+- [x] Test keypair read/write cycle
+- **Status:** ✅ COMPLETE
+- **Est. Time:** 2 days → **COMPLETED IN 1 SESSION**
 
 #### Task 1.3: RPC Client Configuration ⏳
 - [ ] Add Helius RPC connection

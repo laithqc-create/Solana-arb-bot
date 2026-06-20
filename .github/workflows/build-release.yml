@@ -41,16 +41,16 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Looking for .exe files..."
-          Get-ChildItem -Path "src-tauri/target/release/bundle" -Recurse -Filter "*.exe" | ForEach-Object {
+          Get-ChildItem -Path "target/release/bundle" -Recurse -Filter "*.exe" | ForEach-Object {
             Write-Host "Found: $_"
           }
           Write-Host ""
           Write-Host "Bundle directory structure:"
-          Get-ChildItem -Path "src-tauri/target/release/bundle" -Recurse
+          Get-ChildItem -Path "target/release/bundle" -Recurse
       
       - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: solana-arb-bot-windows-installer
-          path: src-tauri/target/release/bundle/**/*.exe
+          path: target/release/bundle/**/*.exe
           retention-days: 30

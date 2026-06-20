@@ -27,14 +27,14 @@
 
 ### **Week 1: Foundation**
 
-#### Task 1.1: Flash Loan Manager ⏳
-- [ ] Create `src/backend/flash_loan/mod.rs`
-- [ ] Implement FlashLoanManager struct
-- [ ] Add Orca flash loan instructions
-- [ ] Add fee calculation
-- [ ] Unit tests (flash_loan_fee_calc)
-- **Status:** Not started
-- **Est. Time:** 3-4 days
+#### Task 1.1: Flash Loan Manager ✅
+- [x] Create `src/backend/flash_loan/mod.rs`
+- [x] Implement FlashLoanManager struct
+- [x] Add Orca flash loan instructions
+- [x] Add fee calculation
+- [x] Unit tests (flash_loan_fee_calc)
+- **Status:** ✅ COMPLETE
+- **Est. Time:** 3-4 days → **COMPLETED IN 1 SESSION**
 
 #### Task 1.2: Keypair & Vault Integration ⏳
 - [ ] Update vault to support keypair encryption

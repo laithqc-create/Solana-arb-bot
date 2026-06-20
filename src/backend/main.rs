@@ -7,11 +7,13 @@ mod vault;
 mod ipc;
 mod streaming;
 mod flash_loan;
+mod keypair;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
 use streaming::GeyserStreamManager;
 use flash_loan::FlashLoanManager;
+use keypair::KeypairManager;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, error};
@@ -90,6 +92,74 @@ async fn get_flash_loan_protocols() -> Result<String, String> {
     }
 }
 
+// Tauri command handler: load keypair from environment
+#[tauri::command]
+async fn load_keypair_from_env() -> Result<String, String> {
+    match KeypairManager::load_from_env() {
+        Ok(keypair) => {
+            let pubkey = keypair.pubkey_string();
+            info!("✅ Keypair loaded from environment: {}", pubkey);
+            Ok(serde_json::json!({
+                "success": true,
+                "public_key": pubkey,
+                "message": "Keypair loaded successfully"
+            }).to_string())
+        }
+        Err(e) => {
+            error!("❌ Failed to load keypair: {}", e);
+            Err(format!("Keypair load failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: load keypair with fallback
+#[tauri::command]
+async fn load_keypair_with_fallback() -> Result<String, String> {
+    match KeypairManager::load_with_fallback() {
+        Ok(keypair) => {
+            let pubkey = keypair.pubkey_string();
+            let source = keypair.source().to_string_lossy().to_string();
+            info!("✅ Keypair loaded from: {}", source);
+            Ok(serde_json::json!({
+                "success": true,
+                "public_key": pubkey,
+                "source": source,
+                "message": "Keypair loaded successfully with fallback"
+            }).to_string())
+        }
+        Err(e) => {
+            error!("❌ Failed to load keypair: {}", e);
+            Err(format!("Keypair load failed: {}", e))
+        }
+    }
+}
+
+// Tauri command handler: estimate balance requirement
+#[tauri::command]
+async fn estimate_balance_requirement(
+    expected_profit_lamports: String,
+    num_executions: String,
+) -> Result<String, String> {
+    let profit: u64 = expected_profit_lamports
+        .parse()
+        .map_err(|_| "Invalid profit format".to_string())?;
+    
+    let executions: u64 = num_executions
+        .parse()
+        .map_err(|_| "Invalid execution count".to_string())?;
+
+    let required = KeypairManager::estimate_required_balance(profit, executions);
+    
+    let required_sol = required as f64 / 1_000_000_000.0; // Convert to SOL
+
+    Ok(serde_json::json!({
+        "required_lamports": required,
+        "required_sol": format!("{:.6}", required_sol),
+        "profit_per_execution": profit,
+        "num_executions": executions
+    }).to_string())
+}
+
 #[tokio::main]
 async fn main() {
     info!("🚀 Solana Arbitrage Engine v1.0.0 Starting...");
@@ -150,6 +220,9 @@ async fn main() {
             get_vault_config,
             get_flash_loan_fee,
             get_flash_loan_protocols,
+            load_keypair_from_env,
+            load_keypair_with_fallback,
+            estimate_balance_requirement,
         ])
         .setup(move |_app| {
             info!("✅ Tauri frontend connected successfully");

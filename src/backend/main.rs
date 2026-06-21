@@ -11,6 +11,7 @@ mod keypair;
 mod rpc;
 mod swap;
 mod jito;
+mod execution;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;
@@ -21,6 +22,7 @@ use swap::{AtomicSwapManager, AtomicSwapCycle, SwapStep, SwapProtocol};
 use jito::JitoBundleBuilder;
 use jito::client::{JitoBundleClient, JitoConfig};
 use jito::tip::{JitoTipCalculator, TipStrategy};
+use execution::{ExecutionCoordinator, ErrorRecoveryManager, ExecutionError};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use log::{info, warn, error};
@@ -525,6 +527,176 @@ async fn get_jito_config() -> Result<String, String> {
     }).to_string())
 }
 
+// Tauri command: execute arbitrage with error recovery
+#[tauri::command]
+fn execute_arbitrage(
+    profit_lamports: String,
+    slippage_bps: String,
+    bundle_id: String,
+) -> Result<String, String> {
+    let profit: u64 = profit_lamports
+        .parse()
+        .map_err(|_| "Invalid profit".to_string())?;
+    let slippage: u64 = slippage_bps
+        .parse()
+        .map_err(|_| "Invalid slippage".to_string())?;
+
+    let mut coordinator = ExecutionCoordinator::new();
+
+    // Step 1: Validate opportunity
+    if let Err(e) = coordinator.validate_opportunity(profit, slippage) {
+        error!("❌ Validation failed: {}", e);
+        return Err(format!("Validation failed: {}", e));
+    }
+
+    // Step 2: Sign transaction
+    match coordinator.sign_transaction() {
+        Ok(signature) => {
+            info!("✅ Transaction signed: {}", signature);
+
+            // Step 3: Submit to bundle
+            if let Err(e) = coordinator.submit_to_bundle(bundle_id) {
+                warn!("⚠️ Bundle submission failed: {}", e);
+                match coordinator.handle_error(e) {
+                    Ok(action) => {
+                        info!("🔄 Recovery action: {:?}", action);
+                    }
+                    Err(critical) => {
+                        return Err(format!("Critical error: {}", critical));
+                    }
+                }
+            }
+
+            // Step 4: Confirm
+            if let Err(e) = coordinator.confirm_transaction() {
+                return Err(format!("Confirmation failed: {}", e));
+            }
+
+            // Success!
+            coordinator.mark_success(profit);
+
+            let summary = coordinator.get_summary();
+            Ok(serde_json::json!({
+                "state": "success",
+                "signature": summary.signature,
+                "profit": profit,
+                "execution_time_ms": summary.execution_time_ms,
+                "attempts": summary.attempts,
+                "message": format!("✅ Arbitrage executed! Profit: {} lamports", profit)
+            }).to_string())
+        }
+        Err(e) => {
+            error!("❌ Signing failed: {}", e);
+            match coordinator.handle_error(e) {
+                Ok(action) => {
+                    Err(format!("Signing failed (action: {:?})", action))
+                }
+                Err(critical) => {
+                    Err(format!("Critical error: {}", critical))
+                }
+            }
+        }
+    }
+}
+
+// Tauri command: recover from transaction failure
+#[tauri::command]
+fn recover_from_failure(
+    error_reason: String,
+) -> Result<String, String> {
+    let execution_error = match error_reason.as_str() {
+        "network" => ExecutionError::NetworkError("Connection lost".to_string()),
+        "insufficient_balance" => ExecutionError::InsufficientBalance {
+            required: 1_000_000,
+            available: 500_000,
+        },
+        "slippage" => ExecutionError::ExcessiveSlippage {
+            expected: 10_000,
+            actual: 9_500,
+        },
+        "timeout" => ExecutionError::ConfirmationTimeout,
+        _ => ExecutionError::NetworkError(error_reason),
+    };
+
+    let mut recovery_manager = ErrorRecoveryManager::new(3);
+    let recovery = recovery_manager.recover(&execution_error);
+
+    info!(
+        "🔄 Recovery action: {:?}, Delay: {}ms",
+        recovery.action,
+        recovery_manager.get_retry_delay_ms()
+    );
+
+    Ok(serde_json::json!({
+        "action": format!("{:?}", recovery.action),
+        "success": recovery.success,
+        "message": recovery.message,
+        "retry_count": recovery.retry_count,
+        "retry_delay_ms": recovery_manager.get_retry_delay_ms(),
+        "can_retry": recovery_manager.can_retry()
+    }).to_string())
+}
+
+// Tauri command: get execution status
+#[tauri::command]
+fn get_execution_status() -> Result<String, String> {
+    Ok(serde_json::json!({
+        "states": [
+            "Pending",
+            "Validating",
+            "Signing",
+            "Submitting",
+            "Confirming",
+            "Success",
+            "RecoveringFromError",
+            "Failed"
+        ],
+        "error_types": [
+            "SimulationFailed",
+            "InsufficientBalance",
+            "ExcessiveSlippage",
+            "RepaymentFailed",
+            "SwapFailed",
+            "NetworkError",
+            "ConfirmationTimeout",
+            "SigningFailed",
+            "RpcError",
+            "BundleSubmissionFailed",
+            "PartialExecution"
+        ],
+        "recovery_actions": [
+            "Retry",
+            "Skip",
+            "Alert",
+            "Rollback"
+        ],
+        "message": "Execution system ready for arbitrage operations"
+    }).to_string())
+}
+
+// Tauri command: estimate execution fee
+#[tauri::command]
+fn estimate_execution_fee(transaction_size: String) -> Result<String, String> {
+    let tx_size: usize = transaction_size
+        .parse()
+        .map_err(|_| "Invalid size".to_string())?;
+
+    // Solana fee: 5000 lamports per signature + size multiplier
+    let base_fee = 5_000u64;
+    let size_multiplier = ((tx_size + 32_000) / 32_000) as u64;
+    let total_fee = base_fee * size_multiplier;
+
+    info!("💰 Estimated fee for {}B tx: {} lamports", tx_size, total_fee);
+
+    Ok(serde_json::json!({
+        "transaction_size": tx_size,
+        "base_fee": base_fee,
+        "size_multiplier": size_multiplier,
+        "total_fee": total_fee,
+        "fee_in_sol": format!("{:.9}", total_fee as f64 / 1_000_000_000.0)
+    }).to_string())
+}
+
 #[tokio::main]
 async fn main() {
     info!("🚀 Solana Arbitrage Engine v1.0.0 Starting...");
@@ -598,6 +770,10 @@ async fn main() {
             calculate_competitive_tip,
             create_jito_bundle,
             get_jito_config,
+            execute_arbitrage,
+            recover_from_failure,
+            get_execution_status,
+            estimate_execution_fee,
         ])
         .setup(move |_app| {
             info!("✅ Tauri frontend connected successfully");

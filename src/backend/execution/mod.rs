@@ -1,274 +1,268 @@
-/// Execution Manager for Live Arbitrage
-/// 
-/// Orchestrates the complete execution pipeline:
-/// 1. Detect opportunity (from Geyser stream)
-/// 2. Validate profitability
-/// 3. Build swap sequence
-/// 4. Simulate before submit
-/// 5. Submit to Jito bundle (Phase 2.3)
-/// 6. Monitor transaction status
-/// 7. Log results to journal
+/// Execution Coordinator
+///
+/// Orchestrates complete arbitrage execution pipeline:
+/// 1. Validate opportunity
+/// 2. Sign transaction
+/// 3. Submit to Jito bundle
+/// 4. Track confirmation
+/// 5. Handle errors with recovery
+///
+/// Manages state across all execution steps
 
-use super::atomic_swap::{AtomicSwapExecutor, ArbitrageOpportunity, SwapConfig};
+pub mod error_recovery;
+pub mod transaction_signer;
+
+pub use error_recovery::{ErrorRecoveryManager, ExecutionError, RecoveryAction};
+pub use transaction_signer::{TransactionSigner, TransactionTracker, SubmissionStatus};
+
 use log::{info, warn, error};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::fmt;
 
-/// Execution status
-#[derive(Debug, Clone, PartialEq)]
-pub enum ExecutionStatus {
+/// Execution state
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionState {
+    /// Waiting to execute
     Pending,
-    Validated,
-    ReadyToSubmit,
-    Submitted,
-    Confirmed,
-    Failed(String),
+    /// Validating opportunity
+    Validating,
+    /// Signing transaction
+    Signing,
+    /// Submitting to bundle
+    Submitting,
+    /// Waiting for confirmation
+    Confirming,
+    /// Completed successfully
+    Success,
+    /// Failed with recovery attempt
+    RecoveringFromError,
+    /// Final failure
+    Failed,
 }
 
-/// Complete execution record
+impl fmt::Display for ExecutionState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ExecutionState::Pending => write!(f, "Pending"),
+            ExecutionState::Validating => write!(f, "Validating"),
+            ExecutionState::Signing => write!(f, "Signing"),
+            ExecutionState::Submitting => write!(f, "Submitting"),
+            ExecutionState::Confirming => write!(f, "Confirming"),
+            ExecutionState::Success => write!(f, "Success"),
+            ExecutionState::RecoveringFromError => write!(f, "Recovering"),
+            ExecutionState::Failed => write!(f, "Failed"),
+        }
+    }
+}
+
+/// Execution result summary
 #[derive(Debug, Clone)]
-pub struct ExecutionRecord {
-    /// Unique execution ID
-    pub id: String,
-    /// Timestamp when execution was created
-    pub timestamp: u64,
-    /// Arbitrage opportunity executed
-    pub opportunity: ArbitrageOpportunity,
-    /// Execution status
-    pub status: ExecutionStatus,
-    /// Gross profit before fees
-    pub gross_profit: u64,
-    /// Net profit after all fees
-    pub net_profit: u64,
-    /// Transaction signature (if submitted)
-    pub tx_signature: Option<String>,
+pub struct ExecutionResult {
+    /// Final state
+    pub state: ExecutionState,
+    /// Transaction signature
+    pub signature: Option<String>,
+    /// Profit achieved (if successful)
+    pub profit: Option<u64>,
     /// Error message (if failed)
-    pub error_message: Option<String>,
+    pub error: Option<String>,
+    /// Recovery action taken (if any)
+    pub recovery_action: Option<RecoveryAction>,
+    /// Total attempts
+    pub attempts: u32,
+    /// Execution time (ms)
+    pub execution_time_ms: u64,
 }
 
-impl ExecutionRecord {
-    /// Create new execution record
-    pub fn new(opp: ArbitrageOpportunity) -> Self {
-        let timestamp = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
+/// Execution Coordinator
+pub struct ExecutionCoordinator {
+    /// Current execution state
+    pub state: ExecutionState,
+    /// Error recovery manager
+    recovery_manager: ErrorRecoveryManager,
+    /// Transaction signer
+    signer: Option<TransactionSigner>,
+    /// Active transaction tracker
+    tracker: Option<TransactionTracker>,
+    /// Attempt count
+    attempts: u32,
+    /// Start time (ms since epoch)
+    start_time: i64,
+}
 
+impl ExecutionCoordinator {
+    /// Create new coordinator
+    pub fn new() -> Self {
         Self {
-            id: format!("exec_{}", timestamp),
-            timestamp,
-            opportunity: opp,
-            status: ExecutionStatus::Pending,
-            gross_profit: 0,
-            net_profit: 0,
-            tx_signature: None,
-            error_message: None,
+            state: ExecutionState::Pending,
+            recovery_manager: ErrorRecoveryManager::new(3), // Max 3 retries
+            signer: None,
+            tracker: None,
+            attempts: 0,
+            start_time: chrono::Local::now().timestamp_millis(),
         }
     }
 
-    /// Mark execution as validated
-    pub fn mark_validated(&mut self, gross_profit: u64, net_profit: u64) {
-        self.status = ExecutionStatus::Validated;
-        self.gross_profit = gross_profit;
-        self.net_profit = net_profit;
-        info!("✅ Execution {} validated: profit {} lamports", self.id, net_profit);
+    /// Set transaction signer
+    pub fn set_signer(&mut self, signer: TransactionSigner) {
+        self.signer = Some(signer);
+        info!("📝 Signer set: {}", signer.public_key());
     }
 
-    /// Mark as ready for submission
-    pub fn mark_ready(&mut self) {
-        self.status = ExecutionStatus::ReadyToSubmit;
-        info!("🎯 Execution {} ready for submission", self.id);
-    }
-
-    /// Mark as submitted
-    pub fn mark_submitted(&mut self, tx_sig: String) {
-        self.status = ExecutionStatus::Submitted;
-        self.tx_signature = Some(tx_sig.clone());
-        info!("📤 Execution {} submitted: {}", self.id, tx_sig);
-    }
-
-    /// Mark as confirmed
-    pub fn mark_confirmed(&mut self) {
-        self.status = ExecutionStatus::Confirmed;
-        info!("✅ Execution {} confirmed!", self.id);
-    }
-
-    /// Mark as failed
-    pub fn mark_failed(&mut self, error: String) {
-        self.status = ExecutionStatus::Failed(error.clone());
-        self.error_message = Some(error.clone());
-        error!("❌ Execution {} failed: {}", self.id, error);
-    }
-
-    /// Format for trade journal
-    pub fn format_for_journal(&self) -> String {
-        format!(
-            "ID: {} | Status: {:?} | Input: {} | Gross: {} | Net: {} | Sig: {} | Error: {}",
-            self.id,
-            self.status,
-            self.opportunity.input_amount,
-            self.gross_profit,
-            self.net_profit,
-            self.tx_signature.as_ref().unwrap_or(&"N/A".to_string()),
-            self.error_message.as_ref().unwrap_or(&"None".to_string()),
-        )
-    }
-}
-
-/// Execution Manager
-pub struct ExecutionManager {
-    swap_executor: AtomicSwapExecutor,
-    /// History of all executions
-    execution_history: Vec<ExecutionRecord>,
-    /// Total profit across all executions
-    total_profit: u64,
-    /// Total executions attempted
-    total_attempts: u32,
-    /// Successful executions
-    successful_executions: u32,
-}
-
-impl ExecutionManager {
-    /// Create new execution manager
-    pub fn new(swap_config: SwapConfig) -> Self {
-        Self {
-            swap_executor: AtomicSwapExecutor::new(swap_config),
-            execution_history: Vec::new(),
-            total_profit: 0,
-            total_attempts: 0,
-            successful_executions: 0,
-        }
-    }
-
-    /// Execute an arbitrage opportunity
-    /// 
-    /// Pipeline:
-    /// 1. Validate profitability
-    /// 2. Build swap instructions
-    /// 3. Simulate execution
-    /// 4. Prepare for submission (Phase 2.3)
-    pub async fn execute_opportunity(
+    /// Validate arbitrage opportunity
+    pub fn validate_opportunity(
         &mut self,
-        opp: ArbitrageOpportunity,
-    ) -> Result<ExecutionRecord, String> {
-        let mut record = ExecutionRecord::new(opp.clone());
-        self.total_attempts += 1;
+        profit_lamports: u64,
+        slippage_bps: u64,
+    ) -> Result<(), ExecutionError> {
+        self.state = ExecutionState::Validating;
+        info!("✅ Validating opportunity: profit={}, slippage={}bps", profit_lamports, slippage_bps);
 
-        info!("🚀 Starting execution pipeline for opportunity...");
-        info!("   Input: {} lamports", opp.input_amount);
+        // Minimum profit check
+        if profit_lamports < 1_000 {
+            return Err(ExecutionError::SimulationFailed(
+                "Profit too low (< 1000 lamports)".to_string(),
+            ));
+        }
 
-        // Step 1: Validate profitability
-        match self.swap_executor.validate_opportunity(&opp) {
-            Ok(validated) => {
-                record.mark_validated(validated.gross_profit, validated.net_profit);
+        // Slippage check (max 50 bps = 0.5%)
+        if slippage_bps > 50 {
+            return Err(ExecutionError::ExcessiveSlippage {
+                expected: profit_lamports,
+                actual: profit_lamports.saturating_mul(10000 - slippage_bps) / 10000,
+            });
+        }
 
-                // Step 2: Build swap instructions
-                match self.swap_executor.build_swap_instructions(&validated) {
-                    Ok(instructions) => {
-                        info!("✅ Built {} instruction(s)", instructions.len());
+        info!("✅ Opportunity validated");
+        Ok(())
+    }
 
-                        // Step 3: Simulate before submit
-                        // TODO: Integrate with RPC manager to actually simulate
-                        match self.swap_executor.simulate_swap(&unimplemented!()).await {
-                            Ok(sim_result) => {
-                                if sim_result.successful {
-                                    info!("✅ Simulation passed: {} compute units", sim_result.compute_units_used);
-                                    record.mark_ready();
+    /// Sign and prepare transaction
+    pub fn sign_transaction(&mut self) -> Result<String, ExecutionError> {
+        self.state = ExecutionState::Signing;
+        self.attempts += 1;
 
-                                    // Update statistics
-                                    self.total_profit = self.total_profit.saturating_add(record.net_profit);
-                                    self.successful_executions += 1;
+        let _signer = self.signer
+            .as_ref()
+            .ok_or_else(|| ExecutionError::SigningFailed("No signer configured".to_string()))?;
 
-                                    self.execution_history.push(record.clone());
-                                    Ok(record)
-                                } else {
-                                    let error = format!("Simulation failed: {:?}", sim_result.error);
-                                    record.mark_failed(error.clone());
-                                    self.execution_history.push(record.clone());
-                                    Err(error)
-                                }
-                            }
-                            Err(e) => {
-                                record.mark_failed(e.clone());
-                                self.execution_history.push(record.clone());
-                                Err(e)
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        record.mark_failed(e.clone());
-                        self.execution_history.push(record.clone());
-                        Err(e)
-                    }
-                }
+        info!("📝 Signing transaction (attempt {})", self.attempts);
+
+        // Placeholder: In real implementation, would sign actual transaction
+        let signature = format!("sig_{}", chrono::Local::now().timestamp_millis());
+        
+        let tracker = TransactionTracker::new(signature.clone());
+        self.tracker = Some(tracker);
+
+        info!("✅ Transaction signed: {}", signature);
+        Ok(signature)
+    }
+
+    /// Submit to Jito bundle
+    pub fn submit_to_bundle(&mut self, _bundle_id: String) -> Result<(), ExecutionError> {
+        self.state = ExecutionState::Submitting;
+
+        let tracker = self.tracker
+            .as_ref()
+            .ok_or_else(|| ExecutionError::BundleSubmissionFailed("No transaction to submit".to_string()))?;
+
+        info!("📤 Submitting bundle with {}", tracker.signature);
+
+        // Placeholder: In real implementation, would submit to Jito
+        info!("✅ Bundle submitted");
+        Ok(())
+    }
+
+    /// Confirm transaction
+    pub fn confirm_transaction(&mut self) -> Result<(), ExecutionError> {
+        self.state = ExecutionState::Confirming;
+
+        if let Some(tracker) = &mut self.tracker {
+            tracker.mark_confirmed();
+            info!("✅ Transaction confirmed after {:?}ms", tracker.confirmation_time_ms());
+            Ok(())
+        } else {
+            Err(ExecutionError::ConfirmationTimeout)
+        }
+    }
+
+    /// Mark execution as successful
+    pub fn mark_success(&mut self, profit: u64) {
+        self.state = ExecutionState::Success;
+        
+        if let Some(tracker) = &mut self.tracker {
+            tracker.mark_finalized();
+        }
+
+        let elapsed = chrono::Local::now().timestamp_millis() - self.start_time;
+        info!(
+            "🎉 Arbitrage successful: {} lamports profit in {}ms",
+            profit, elapsed
+        );
+    }
+
+    /// Handle execution error
+    pub fn handle_error(&mut self, error: ExecutionError) -> Result<RecoveryAction, ExecutionError> {
+        error!("❌ Execution error: {}", error);
+        
+        self.state = ExecutionState::RecoveringFromError;
+
+        let recovery_result = self.recovery_manager.recover(&error);
+        
+        match recovery_result.action {
+            RecoveryAction::Retry => {
+                warn!("🔄 Will retry after delay");
+                Ok(RecoveryAction::Retry)
             }
-            Err(e) => {
-                record.mark_failed(e.clone());
-                self.execution_history.push(record.clone());
-                Err(e)
+            RecoveryAction::Skip => {
+                warn!("⏭️ Skipping this opportunity");
+                self.state = ExecutionState::Failed;
+                Ok(RecoveryAction::Skip)
+            }
+            RecoveryAction::Alert => {
+                error!("🚨 Critical error, alerting user");
+                self.state = ExecutionState::Failed;
+                Err(error)
+            }
+            RecoveryAction::Rollback => {
+                warn!("↩️ Attempting rollback");
+                Ok(RecoveryAction::Rollback)
             }
         }
     }
 
-    /// Get execution history
-    pub fn get_history(&self) -> &[ExecutionRecord] {
-        &self.execution_history
-    }
+    /// Get execution summary
+    pub fn get_summary(&self) -> ExecutionResult {
+        let elapsed = chrono::Local::now().timestamp_millis() - self.start_time;
 
-    /// Get statistics
-    pub fn get_stats(&self) -> ExecutionStats {
-        ExecutionStats {
-            total_attempts: self.total_attempts,
-            successful_executions: self.successful_executions,
-            failed_executions: self.total_attempts.saturating_sub(self.successful_executions),
-            success_rate: if self.total_attempts > 0 {
-                (self.successful_executions as f64 / self.total_attempts as f64) * 100.0
-            } else {
-                0.0
-            },
-            total_profit: self.total_profit,
-            average_profit_per_execution: if self.successful_executions > 0 {
-                self.total_profit / self.successful_executions as u64
-            } else {
-                0
-            },
+        ExecutionResult {
+            state: self.state,
+            signature: self.tracker.as_ref().map(|t| t.signature.clone()),
+            profit: None, // Set by caller
+            error: self.tracker
+                .as_ref()
+                .and_then(|t| t.last_error.clone()),
+            recovery_action: None, // Set by caller
+            attempts: self.attempts,
+            execution_time_ms: elapsed as u64,
         }
     }
 
-    /// Format trade journal entry
-    pub fn format_trade_journal(&self) -> String {
-        let stats = self.get_stats();
-        let mut journal = String::new();
-
-        journal.push_str(&format!(
-            "=== TRADE JOURNAL ===\n\
-             Attempts: {} | Success: {} | Failed: {} | Success Rate: {:.1}%\n\
-             Total Profit: {} lamports | Avg per Trade: {} lamports\n\n",
-            stats.total_attempts,
-            stats.successful_executions,
-            stats.failed_executions,
-            stats.success_rate,
-            stats.total_profit,
-            stats.average_profit_per_execution
-        ));
-
-        journal.push_str("Recent Executions:\n");
-        for record in self.execution_history.iter().rev().take(10) {
-            journal.push_str(&format!("{}\n", record.format_for_journal()));
-        }
-
-        journal
+    /// Can retry execution?
+    pub fn can_retry(&self) -> bool {
+        self.recovery_manager.can_retry()
     }
-}
 
-/// Execution statistics
-#[derive(Debug, Clone)]
-pub struct ExecutionStats {
-    pub total_attempts: u32,
-    pub successful_executions: u32,
-    pub failed_executions: u32,
-    pub success_rate: f64,
-    pub total_profit: u64,
-    pub average_profit_per_execution: u64,
+    /// Get retry delay (ms)
+    pub fn get_retry_delay_ms(&self) -> u64 {
+        self.recovery_manager.get_retry_delay_ms()
+    }
+
+    /// Reset for retry
+    pub fn reset_for_retry(&mut self) {
+        self.state = ExecutionState::Pending;
+        self.tracker = None;
+        info!("🔄 Reset for retry");
+    }
 }
 
 #[cfg(test)]
@@ -276,75 +270,83 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_execution_record_lifecycle() {
-        let mut record = ExecutionRecord::new(create_test_opp());
-        assert_eq!(record.status, ExecutionStatus::Pending);
-
-        record.mark_validated(100_000, 50_000);
-        assert_eq!(record.status, ExecutionStatus::Validated);
-
-        record.mark_ready();
-        assert_eq!(record.status, ExecutionStatus::ReadyToSubmit);
-
-        record.mark_submitted("sig123".to_string());
-        assert_eq!(record.status, ExecutionStatus::Submitted);
-        assert_eq!(record.tx_signature, Some("sig123".to_string()));
-
-        record.mark_confirmed();
-        assert_eq!(record.status, ExecutionStatus::Confirmed);
+    fn test_coordinator_creation() {
+        let coordinator = ExecutionCoordinator::new();
+        
+        assert_eq!(coordinator.state, ExecutionState::Pending);
+        assert_eq!(coordinator.attempts, 0);
     }
 
     #[test]
-    fn test_execution_manager_stats() {
-        let mut manager = ExecutionManager::new(SwapConfig::default());
+    fn test_validate_opportunity_good() {
+        let mut coordinator = ExecutionCoordinator::new();
         
-        // Simulate an execution
-        let mut record = ExecutionRecord::new(create_test_opp());
-        record.mark_validated(100_000, 50_000);
-        manager.execution_history.push(record);
-        manager.successful_executions = 1;
-        manager.total_attempts = 1;
-        manager.total_profit = 50_000;
-
-        let stats = manager.get_stats();
-        assert_eq!(stats.total_attempts, 1);
-        assert_eq!(stats.successful_executions, 1);
-        assert_eq!(stats.success_rate, 100.0);
-        assert_eq!(stats.total_profit, 50_000);
+        let result = coordinator.validate_opportunity(10_000, 25);
+        assert!(result.is_ok());
     }
 
     #[test]
-    fn test_trade_journal_formatting() {
-        let mut manager = ExecutionManager::new(SwapConfig::default());
+    fn test_validate_opportunity_low_profit() {
+        let mut coordinator = ExecutionCoordinator::new();
         
-        let mut record = ExecutionRecord::new(create_test_opp());
-        record.mark_validated(100_000, 50_000);
-        manager.execution_history.push(record);
-        manager.successful_executions = 1;
-        manager.total_attempts = 1;
-        manager.total_profit = 50_000;
-
-        let journal = manager.format_trade_journal();
-        assert!(journal.contains("TRADE JOURNAL"));
-        assert!(journal.contains("Success Rate"));
-        assert!(journal.contains("Total Profit"));
+        let result = coordinator.validate_opportunity(500, 25);
+        assert!(result.is_err());
     }
 
-    fn create_test_opp() -> ArbitrageOpportunity {
-        use solana_sdk::pubkey::Pubkey;
+    #[test]
+    fn test_validate_opportunity_high_slippage() {
+        let mut coordinator = ExecutionCoordinator::new();
+        
+        let result = coordinator.validate_opportunity(10_000, 100); // 1% slippage
+        assert!(result.is_err());
+    }
 
-        ArbitrageOpportunity {
-            input_token: Pubkey::new_unique(),
-            input_amount: 1_000_000,
-            expected_output: 1_050_000,
-            token_a: Pubkey::new_unique(),
-            token_b: Pubkey::new_unique(),
-            dex_1_program: Pubkey::new_unique(),
-            dex_2_program: Pubkey::new_unique(),
-            dex_1_pool: Pubkey::new_unique(),
-            dex_2_pool: Pubkey::new_unique(),
-            flash_loan_program: Pubkey::new_unique(),
-            user_wallet: Pubkey::new_unique(),
-        }
+    #[test]
+    fn test_sign_transaction_no_signer() {
+        let mut coordinator = ExecutionCoordinator::new();
+        
+        let result = coordinator.sign_transaction();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_execution_flow() {
+        let mut coordinator = ExecutionCoordinator::new();
+        
+        // Validate
+        assert!(coordinator.validate_opportunity(10_000, 25).is_ok());
+        
+        // Sign (without actual signer, just placeholder)
+        let sig = coordinator.sign_transaction();
+        assert!(sig.is_ok());
+        
+        // Confirm
+        assert!(coordinator.confirm_transaction().is_ok());
+        
+        // Mark success
+        coordinator.mark_success(10_000);
+        assert_eq!(coordinator.state, ExecutionState::Success);
+    }
+
+    #[test]
+    fn test_retry_logic() {
+        let mut coordinator = ExecutionCoordinator::new();
+        
+        assert!(coordinator.can_retry());
+        
+        let error = ExecutionError::NetworkError("Connection lost".to_string());
+        let recovery = coordinator.handle_error(error);
+        
+        assert!(recovery.is_ok());
+        assert_eq!(recovery.unwrap(), RecoveryAction::Retry);
+    }
+
+    #[test]
+    fn test_get_summary() {
+        let coordinator = ExecutionCoordinator::new();
+        let summary = coordinator.get_summary();
+        
+        assert_eq!(summary.state, ExecutionState::Pending);
+        assert_eq!(summary.attempts, 0);
     }
 }

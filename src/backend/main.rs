@@ -12,6 +12,7 @@ mod rpc;
 mod swap;
 mod jito;
 mod execution;
+mod validation;
 
 use engine::ArbitrageEngine;
 use ipc::IPCHandler;

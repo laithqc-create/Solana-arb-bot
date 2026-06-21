@@ -10,6 +10,7 @@
 
 pub mod client;
 pub mod tip;
+pub mod connection_pool;
 
 use solana_sdk::pubkey::Pubkey;
 use log::{info, warn};

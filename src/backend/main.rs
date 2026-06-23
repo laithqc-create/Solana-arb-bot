@@ -559,7 +559,6 @@ fn execute_arbitrage_optimized(
             info!("✅ Signed in <40ms: {}", signature);
 
             // OPTIMIZED: Submit (60ms)
-            }
 
             // OPTIMIZED: Confirm (50ms - Jito response only)
             if let Err(e) = coordinator.confirm_transaction_fast() {

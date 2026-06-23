@@ -17,10 +17,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install Rust
+      - name: Install Rust (1.76+)
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.75
+          toolchain: 1.76
       
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -71,7 +71,7 @@ jobs:
       - name: Create Release Notes
         run: |
           cat > RELEASE_NOTES.md << 'NOTES'
-          # Production Release - Solana Arbitrage Engine
+          # Production Release - Solana Arbitrage Engine v1.0.1
           
           ## Build Information
           - **Version**: ${{ github.ref_name }}
@@ -101,8 +101,7 @@ jobs:
           
           ## Quick Start
           ```bash
-          # Download from artifacts
-          # Make executable
+          # Download and make executable
           chmod +x solana_arb_bot
           
           # Setup environment
@@ -126,12 +125,6 @@ jobs:
           - ✅ Devnet testing (Week 1-3)
           - ✅ Testnet validation (Week 4-6)
           - ✅ Mainnet deployment (Week 7+)
-          
-          ## Documentation
-          See repository for complete guides:
-          - BUILD_AND_DEPLOYMENT.md
-          - DEVNET_TESTING_GUIDE.md
-          - FINAL_DELIVERY_PACKAGE.md
           NOTES
       
       - name: Upload Release Notes

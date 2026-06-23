@@ -93,6 +93,7 @@ impl FraudBlacklist {
 
 /// Pool information
 #[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PoolInfo {
     pub dex: String,
     pub pool_address: String,

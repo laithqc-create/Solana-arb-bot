@@ -7,7 +7,7 @@
 ///
 /// Strategy: Give Jito 85-90% of profit to ensure fast inclusion
 
-use log::{info, warn};
+use log::{info};
 use std::fmt;
 
 /// Tip calculation strategy

@@ -7,7 +7,7 @@
 /// - Handle failures gracefully
 
 use super::{JitoBundle, BundleStatus};
-use log::{info, warn, error};
+use log::{info};
 use std::time::{Duration, SystemTime};
 use std::fmt;
 

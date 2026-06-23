@@ -21,7 +21,6 @@ use keypair::KeypairManager;
 use rpc::RpcClientManager;
 use swap::{AtomicSwapManager, AtomicSwapCycle, SwapStep, SwapProtocol};
 use jito::JitoBundleBuilder;
-use jito::client::{JitoBundleClient, JitoConfig};
 use jito::tip::{JitoTipCalculator, TipStrategy};
 use execution::{ExecutionCoordinator, ErrorRecoveryManager, ExecutionError};
 use std::sync::Arc;
@@ -560,8 +559,6 @@ fn execute_arbitrage_optimized(
             info!("✅ Signed in <40ms: {}", signature);
 
             // OPTIMIZED: Submit (60ms)
-            if let Err(e) = coordinator.submit_to_bundle_fast(bundle_id.clone()) {
-                warn!("⚠️ Bundle submission failed: {}", e);
             }
 
             // OPTIMIZED: Confirm (50ms - Jito response only)
@@ -605,19 +602,12 @@ fn execute_arbitrage(
     let mut coordinator = ExecutionCoordinator::new();
 
     // Step 1: Validate opportunity
-    if let Err(e) = coordinator.validate_opportunity(profit, slippage) {
-        error!("❌ Validation failed: {}", e);
         return Err(format!("Validation failed: {}", e));
     }
 
     // Step 2: Sign transaction
-    match coordinator.sign_transaction() {
-        Ok(signature) => {
-            info!("✅ Transaction signed: {}", signature);
 
             // Step 3: Submit to bundle
-            if let Err(e) = coordinator.submit_to_bundle(bundle_id) {
-                warn!("⚠️ Bundle submission failed: {}", e);
                 match coordinator.handle_error(e) {
                     Ok(action) => {
                         info!("🔄 Recovery action: {:?}", action);
@@ -629,8 +619,6 @@ fn execute_arbitrage(
             }
 
             // Step 4: Confirm
-            if let Err(e) = coordinator.confirm_transaction() {
-                return Err(format!("Confirmation failed: {}", e));
             }
 
             // Success!

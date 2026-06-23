@@ -11,7 +11,7 @@
 
 use solana_sdk::pubkey::Pubkey;
 use std::fmt;
-use log::{info, warn};
+use log::{info};
 
 /// Swap protocol identifier
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

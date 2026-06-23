@@ -7,7 +7,7 @@
 /// - Target: 60ms total (was 500ms)
 
 use std::sync::Arc;
-use log::{info, warn, error};
+use log::{info};
 
 /// Jito connection pool entry
 #[derive(Debug, Clone)]

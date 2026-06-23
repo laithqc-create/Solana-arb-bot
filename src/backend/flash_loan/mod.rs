@@ -9,12 +9,10 @@
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
-    program_pack::Pack,
     pubkey::Pubkey,
     signature::Signature,
     transaction::Transaction,
 };
-use spl_token::state::Account as TokenAccount;
 use std::str::FromStr;
 
 pub mod fee_calculator;

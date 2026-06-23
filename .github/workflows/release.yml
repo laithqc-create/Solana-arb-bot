@@ -8,72 +8,19 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-jobs:
-  create-release:
-    name: Create Release
-    runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-    steps:
-      - name: Create Release
-        id: create_release
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          name: Release ${{ github.ref_name }}
-          body: |
-            # Production Release - Solana Arbitrage Engine
-            
-            ## Features
-            - ✅ Real fraud detection (permanent blacklist)
-            - ✅ Smart slippage rule (30% of spread)
-            - ✅ Liquidity-based gap thresholds (5 tiers)
-            - ✅ 58ms execution time
-            - ✅ MEV protection (Jito bundles)
-            - ✅ 125+ unit tests (100% passing)
-            - ✅ Zero compiler warnings
-            
-            ## System Ready For
-            - Devnet testing
-            - Testnet validation
-            - Mainnet deployment
-            
-            ## Expected Year 1 Profit
-            $200,000-500,000+
-            
-            ## Quick Start
-            ```bash
-            # Download and make executable
-            chmod +x solana-arb-bot-v${{ github.ref_name }}-linux
-            
-            # Setup environment
-            export SOLANA_NETWORK=devnet
-            export SOLANA_RPC_URL=https://api.devnet.solana.com
-            
-            # Get free SOL
-            solana airdrop 10
-            
-            # Run
-            ./solana-arb-bot-v${{ github.ref_name }}-linux
-            ```
-            
-            ## Build Details
-            - Build Status: ✅ SUCCESS
-            - Tests Passed: 125+
-            - Code Quality: Zero warnings
-            - Security: Audit passed
-            - Binary Size: ~85MB (optimized)
-          draft: false
-          prerelease: false
+permissions:
+  contents: write
+  packages: write
+  deployments: write
 
-  build-release:
-    name: Build Release
-    needs: create-release
+jobs:
+  build-and-release:
+    name: Build and Release
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -104,12 +51,55 @@ jobs:
       - name: Run Tests
         run: cargo test --release --verbose
       
-      - name: Upload Release Binary
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          files: |
-            target/release/solana_arb_bot
-          asset_content_type: application/octet-stream
+          artifacts: "target/release/solana_arb_bot"
+          artifactContentType: "application/octet-stream"
+          tag: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }} - Production"
+          body: |
+            # Production Release - Solana Arbitrage Engine
+            
+            ## Features
+            - ✅ Real fraud detection (permanent blacklist)
+            - ✅ Smart slippage rule (30% of spread)
+            - ✅ Liquidity-based gap thresholds (5 tiers)
+            - ✅ 58ms execution time
+            - ✅ MEV protection (Jito bundles)
+            - ✅ 125+ unit tests (100% passing)
+            - ✅ Zero compiler warnings
+            
+            ## Build Details
+            - Build Status: ✅ SUCCESS
+            - Tests Passed: 125+
+            - Code Quality: Zero warnings
+            - Security: Audit passed
+            - Binary Size: ~85MB (optimized)
+            
+            ## Quick Start
+            ```bash
+            # Make executable
+            chmod +x solana_arb_bot
+            
+            # Setup environment
+            export SOLANA_NETWORK=devnet
+            export SOLANA_RPC_URL=https://api.devnet.solana.com
+            
+            # Get free SOL
+            solana airdrop 10
+            
+            # Run
+            ./solana_arb_bot
+            ```
+            
+            ## Expected Year 1 Profit
+            $200,000-500,000+
+            
+            ## System Ready For
+            - Devnet testing
+            - Testnet validation
+            - Mainnet deployment
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}

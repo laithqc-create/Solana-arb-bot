@@ -16,7 +16,7 @@ pub mod transaction_signer;
 pub mod validated_execution;
 
 pub use error_recovery::{ErrorRecoveryManager, ExecutionError, RecoveryAction};
-pub use transaction_signer::{TransactionSigner, TransactionTracker, SubmissionStatus};
+pub use transaction_signer::{TransactionSigner, TransactionTracker};
 
 use log::{info, warn, error};
 use std::fmt;

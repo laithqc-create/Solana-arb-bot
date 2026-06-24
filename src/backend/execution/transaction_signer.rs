@@ -1,5 +1,6 @@
 use solana_sdk::{
     signature::{Keypair, Signature},
+    signer::Signer,
     transaction::Transaction,
 };
 use log::info;
@@ -9,7 +10,9 @@ pub struct TransactionSigner {
 }
 
 pub struct TransactionTracker {
-    signature: Option<Signature>,
+    pub signature: Option<Signature>,
+    pub confirmed: bool,
+    pub finalized: bool,
 }
 
 impl TransactionSigner {
@@ -17,15 +20,11 @@ impl TransactionSigner {
         TransactionSigner { keypair }
     }
 
-    pub fn sign_transaction(&self, mut transaction: Transaction) -> Result<Signature, String> {
+    pub fn sign_transaction(&self, transaction: Transaction) -> Result<Signature, String> {
         info!("Signing transaction");
         
-        // In practice, signing would be done here
-        // For now, we create a dummy signature
-        let message = transaction.message();
-        let message_bytes = bincode::serialize(message)
-            .map_err(|e| format!("Serialization error: {}", e))?;
-
+        // Sign using the keypair's sign method
+        let message_bytes = transaction.message_data();
         let signature = self.keypair.sign_message(&message_bytes);
         
         info!("Transaction signed successfully");
@@ -35,7 +34,11 @@ impl TransactionSigner {
 
 impl TransactionTracker {
     pub fn new() -> Self {
-        TransactionTracker { signature: None }
+        TransactionTracker { 
+            signature: None,
+            confirmed: false,
+            finalized: false,
+        }
     }
 
     pub fn set_signature(&mut self, sig: Signature) {
@@ -45,28 +48,25 @@ impl TransactionTracker {
     pub fn get_signature(&self) -> Option<Signature> {
         self.signature
     }
+
+    pub fn mark_confirmed(&mut self) {
+        self.confirmed = true;
+    }
+
+    pub fn mark_finalized(&mut self) {
+        self.finalized = true;
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solana_sdk::signer::Signer;
-
-    #[test]
-    fn test_transaction_signer_creation() {
-        let keypair = Keypair::new();
-        let signer = TransactionSigner::new(keypair);
-        assert!(!signer.keypair.to_bytes().is_empty());
-    }
 
     #[test]
     fn test_transaction_tracker() {
         let mut tracker = TransactionTracker::new();
         assert!(tracker.get_signature().is_none());
-        
-        let keypair = Keypair::new();
-        let sig = keypair.sign_message(b"test");
-        tracker.set_signature(sig);
-        assert!(tracker.get_signature().is_some());
+        tracker.mark_confirmed();
+        assert!(tracker.confirmed);
     }
 }

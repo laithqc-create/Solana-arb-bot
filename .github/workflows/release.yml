@@ -17,6 +17,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libglib2.0-dev
+      
       - name: Install Rust (nightly)
         uses: dtolnay/rust-toolchain@nightly
       
@@ -69,7 +74,7 @@ jobs:
       - name: Create Release Notes
         run: |
           cat > RELEASE_NOTES.md << 'NOTES'
-          # Production Release - Solana Arbitrage Engine v1.0.3
+          # Production Release - Solana Arbitrage Engine v1.0.5
           
           ## Build Information
           - **Version**: ${{ github.ref_name }}

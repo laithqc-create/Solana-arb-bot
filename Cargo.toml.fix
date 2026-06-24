@@ -1,0 +1,4 @@
+# Install glib dependencies or create a feature flag to skip Tauri for CI builds
+# For CI: we just need the backend binary, not the GUI
+
+# Solution: Build backend only in CI

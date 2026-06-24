@@ -470,7 +470,7 @@ async fn calculate_competitive_tip(
 // Tauri command handler: create Jito bundle
 #[tauri::command]
 async fn create_jito_bundle(
-    bundle_id: String,
+    _bundle_id: String,
     jito_tip: String,
 ) -> Result<String, String> {
     let tip: u64 = jito_tip
@@ -533,7 +533,7 @@ fn execute_arbitrage_optimized(
     profit_lamports: String,
     slippage_bps: String,
     liquidity: String,
-    bundle_id: String,
+    _bundle_id: String,
 ) -> Result<String, String> {
     let profit: u64 = profit_lamports
         .parse()
@@ -802,7 +802,6 @@ async fn main() {
             calculate_competitive_tip,
             create_jito_bundle,
             get_jito_config,
-            execute_arbitrage,
             execute_arbitrage_optimized,
             recover_from_failure,
             get_execution_status,

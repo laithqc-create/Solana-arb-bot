@@ -17,10 +17,8 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       
-      - name: Install Rust (1.76+)
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: 1.76
+      - name: Install Rust (nightly)
+        uses: dtolnay/rust-toolchain@nightly
       
       - name: Cache cargo registry
         uses: actions/cache@v4
@@ -71,13 +69,14 @@ jobs:
       - name: Create Release Notes
         run: |
           cat > RELEASE_NOTES.md << 'NOTES'
-          # Production Release - Solana Arbitrage Engine v1.0.1
+          # Production Release - Solana Arbitrage Engine v1.0.3
           
           ## Build Information
           - **Version**: ${{ github.ref_name }}
           - **Build Date**: $(date)
           - **Commit**: ${{ github.sha }}
           - **Status**: ✅ PRODUCTION READY
+          - **Rust**: nightly (supports edition2024)
           
           ## Test Results
           - ✅ 125+ unit tests PASSED

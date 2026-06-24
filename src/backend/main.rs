@@ -470,7 +470,7 @@ async fn calculate_competitive_tip(
 // Tauri command handler: create Jito bundle
 #[tauri::command]
 async fn create_jito_bundle(
-    _bundle_id: String,
+    bundle_id: String,
     jito_tip: String,
 ) -> Result<String, String> {
     let tip: u64 = jito_tip

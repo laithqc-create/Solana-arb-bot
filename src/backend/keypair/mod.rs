@@ -19,7 +19,7 @@ use solana_sdk::{
 };
 use std::path::PathBuf;
 use std::fs;
-use log::{info};
+use log::{info, warn};
 use zeroize::Zeroize;
 
 /// Keypair wrapper that zeroizes memory on drop

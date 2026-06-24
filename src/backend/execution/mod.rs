@@ -187,7 +187,10 @@ impl ExecutionCoordinator {
         let signature = format!("sig_opt_{}", chrono::Local::now().timestamp_millis());
         
         // Lazy tracker creation (deferred from hot path)
-        let tracker = TransactionTracker::new(signature.clone());
+        let mut tracker = TransactionTracker::new();
+            if let Ok(sig) = signature.parse() {
+                tracker.set_signature(sig);
+            }
         self.tracker = Some(tracker);
 
         info!("✅ Transaction signed in <40ms (optimized)");
@@ -199,7 +202,7 @@ impl ExecutionCoordinator {
     pub async fn submit_to_bundle_fast(&mut self, _bundle_id: String) -> Result<(), ExecutionError> {
         self.state = ExecutionState::Submitting;
 
-        let tracker = self.tracker
+        let _tracker = self.tracker
             .as_ref()
             .ok_or_else(|| ExecutionError::BundleSubmissionFailed("No transaction to submit".to_string()))?;
 
@@ -262,7 +265,7 @@ impl ExecutionCoordinator {
 
         Ok(ExecutionResult {
             state: self.state,
-            signature: self.tracker.as_ref().map(|t| t.signature.clone()),
+            signature: self.tracker.as_ref().and_then(|t| t.signature.clone()).map(|s| s.to_string()),
             profit: Some(profit),
             error: None,
             recovery_action: None,
@@ -322,11 +325,11 @@ impl ExecutionCoordinator {
 
         ExecutionResult {
             state: self.state,
-            signature: self.tracker.as_ref().map(|t| t.signature.clone()),
+            signature: self.tracker.as_ref().and_then(|t| t.signature.clone()).map(|s| s.to_string()),
             profit: None,
             error: self.tracker
                 .as_ref()
-                .and_then(|t| t.last_error.clone()),
+                ,
             recovery_action: None,
             attempts: self.attempts,
             execution_time_ms: elapsed as u64,

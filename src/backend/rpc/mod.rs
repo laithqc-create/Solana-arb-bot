@@ -14,7 +14,7 @@
 
 use solana_client::rpc_client::RpcClient;
 use std::time::Duration;
-use log::{info};
+use log::{info, warn};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 

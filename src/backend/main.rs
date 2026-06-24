@@ -584,68 +584,6 @@ fn execute_arbitrage_optimized(
     }
 }
 
-// Tauri command: execute arbitrage with error recovery
-#[tauri::command]
-fn execute_arbitrage(
-    profit_lamports: String,
-    slippage_bps: String,
-    bundle_id: String,
-) -> Result<String, String> {
-    let profit: u64 = profit_lamports
-        .parse()
-        .map_err(|_| "Invalid profit".to_string())?;
-    let slippage: u64 = slippage_bps
-        .parse()
-        .map_err(|_| "Invalid slippage".to_string())?;
-
-    let mut coordinator = ExecutionCoordinator::new();
-
-    // Step 1: Validate opportunity
-        return Err(format!("Validation failed: {}", e));
-    }
-
-    // Step 2: Sign transaction
-
-            // Step 3: Submit to bundle
-                match coordinator.handle_error(e) {
-                    Ok(action) => {
-                        info!("🔄 Recovery action: {:?}", action);
-                    }
-                    Err(critical) => {
-                        return Err(format!("Critical error: {}", critical));
-                    }
-                }
-            }
-
-            // Step 4: Confirm
-            }
-
-            // Success!
-            coordinator.mark_success(profit);
-
-            let summary = coordinator.get_summary();
-            Ok(serde_json::json!({
-                "state": "success",
-                "signature": summary.signature,
-                "profit": profit,
-                "execution_time_ms": summary.execution_time_ms,
-                "attempts": summary.attempts,
-                "message": format!("✅ Arbitrage executed! Profit: {} lamports", profit)
-            }).to_string())
-        }
-        Err(e) => {
-            error!("❌ Signing failed: {}", e);
-            match coordinator.handle_error(e) {
-                Ok(action) => {
-                    Err(format!("Signing failed (action: {:?})", action))
-                }
-                Err(critical) => {
-                    Err(format!("Critical error: {}", critical))
-                }
-            }
-        }
-    }
-}
 
 // Tauri command: recover from transaction failure
 #[tauri::command]

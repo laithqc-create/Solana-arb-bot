@@ -327,8 +327,7 @@ impl ExecutionCoordinator {
             state: self.state,
             signature: self.tracker.as_ref().and_then(|t| t.signature.clone()).map(|s| s.to_string()),
             profit: None,
-            error: self.tracker
-                .as_ref()
+            error: None
                 ,
             recovery_action: None,
             attempts: self.attempts,

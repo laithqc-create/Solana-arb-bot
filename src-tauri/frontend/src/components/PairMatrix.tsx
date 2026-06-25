@@ -1,5 +1,6 @@
 // src-tauri/frontend/src/components/PairMatrix.tsx
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/tauri'
 import '../styles/PairMatrix.css'
 
 interface PoolData {
@@ -17,11 +18,34 @@ interface Opportunity {
   exit_pool: PoolData
 }
 
-interface Props {
-  opportunities: Opportunity[]
-}
+const PairMatrix: React.FC = () => {
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-const PairMatrix: React.FC<Props> = ({ opportunities }) => {
+  useEffect(() => {
+    const fetchOpportunities = async () => {
+      try {
+        setLoading(true)
+        const result = await invoke<Opportunity[]>('get_opportunities')
+        setOpportunities(result || [])
+        setError(null)
+      } catch (err) {
+        setError(String(err))
+        console.error('Error fetching opportunities:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    // Fetch immediately
+    fetchOpportunities()
+
+    // Then fetch every 3 seconds
+    const interval = setInterval(fetchOpportunities, 3000)
+    return () => clearInterval(interval)
+  }, [])
+
   // Group by token pair
   const groupedByPair = opportunities.reduce((acc, opp) => {
     const pair = opp.pair
@@ -47,6 +71,14 @@ const PairMatrix: React.FC<Props> = ({ opportunities }) => {
     if (usd > 1_000_000) return `$${(usd / 1_000_000).toFixed(2)}M`
     if (usd > 1_000) return `$${(usd / 1_000).toFixed(1)}K`
     return `$${usd.toFixed(0)}`
+  }
+
+  if (loading) {
+    return <div className="pair-matrix loading">⏳ Loading pair matrix...</div>
+  }
+
+  if (error) {
+    return <div className="pair-matrix error">❌ Error: {error}</div>
   }
 
   return (

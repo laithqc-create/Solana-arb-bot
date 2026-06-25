@@ -1,5 +1,6 @@
 // src-tauri/frontend/src/components/TradeJournal.tsx
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/tauri'
 import '../styles/TradeJournal.css'
 
 interface Opportunity {
@@ -19,13 +20,35 @@ interface Opportunity {
   }
 }
 
-interface Props {
-  opportunities: Opportunity[]
-}
-
-const TradeJournal: React.FC<Props> = ({ opportunities }) => {
+const TradeJournal: React.FC = () => {
+  const [opportunities, setOpportunities] = useState<Opportunity[]>([])
   const [filterProfitableOnly, setFilterProfitableOnly] = useState(true)
   const [sortBy, setSortBy] = useState<'profit' | 'spread' | 'pair'>('profit')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchOpportunities = async () => {
+      try {
+        setLoading(true)
+        const result = await invoke<Opportunity[]>('get_opportunities')
+        setOpportunities(result || [])
+        setError(null)
+      } catch (err) {
+        setError(String(err))
+        console.error('Error fetching opportunities:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    // Fetch immediately
+    fetchOpportunities()
+
+    // Then fetch every 3 seconds
+    const interval = setInterval(fetchOpportunities, 3000)
+    return () => clearInterval(interval)
+  }, [])
 
   const filtered = filterProfitableOnly 
     ? opportunities.filter(o => o.profitable)
@@ -77,6 +100,14 @@ const TradeJournal: React.FC<Props> = ({ opportunities }) => {
     maxProfit: opportunities.length > 0
       ? Math.max(...opportunities.map(o => o.net_profit_bps))
       : 0
+  }
+
+  if (loading) {
+    return <div className="trade-journal loading">⏳ Loading opportunities...</div>
+  }
+
+  if (error) {
+    return <div className="trade-journal error">❌ Error: {error}</div>
   }
 
   return (

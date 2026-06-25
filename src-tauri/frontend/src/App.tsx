@@ -5,6 +5,8 @@ import PairMatrix from './components/PairMatrix'
 import StreamStatus from './components/StreamStatus'
 import ConfigPanel from './components/ConfigPanel'
 import TradeJournal from './components/TradeJournal'
+import ExecutionPanel from './components/ExecutionPanel'
+import ProfitDashboard from './components/ProfitDashboard'
 import './App.css'
 
 interface Opportunity {
@@ -80,7 +82,7 @@ function App() {
           <p className="subtitle">Real-time cross-DEX opportunity detection</p>
         </div>
         <div className="header-right">
-          <StreamStatus status={streamStatus} />
+          <StreamStatus />
           <button 
             className="refresh-btn"
             onClick={fetchOpportunities}
@@ -94,10 +96,16 @@ function App() {
       {/* Navigation Tabs */}
       <nav className="tab-nav">
         <button 
+          className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setActiveTab('dashboard')}
+        >
+          📊 Dashboard
+        </button>
+        <button 
           className={`tab-btn ${activeTab === 'matrix' ? 'active' : ''}`}
           onClick={() => setActiveTab('matrix')}
         >
-          📊 Pair Matrix
+          🔍 Pair Matrix
         </button>
         <button 
           className={`tab-btn ${activeTab === 'journal' ? 'active' : ''}`}
@@ -106,15 +114,27 @@ function App() {
           📝 Trade Journal
         </button>
         <button 
+          className={`tab-btn ${activeTab === 'execute' ? 'active' : ''}`}
+          onClick={() => setActiveTab('execute')}
+        >
+          🚀 Execute
+        </button>
+        <button 
           className={`tab-btn ${activeTab === 'config' ? 'active' : ''}`}
           onClick={() => setActiveTab('config')}
         >
-          ⚙️ Configuration
+          ⚙️ Config
         </button>
       </nav>
 
       {/* Main Content */}
       <main className="app-main">
+        {activeTab === 'dashboard' && (
+          <section className="content-section">
+            <ProfitDashboard />
+          </section>
+        )}
+
         {activeTab === 'matrix' && (
           <section className="content-section">
             <div className="controls">
@@ -135,13 +155,19 @@ function App() {
                 <span>Profitable: <strong>{opportunities.filter(o => o.profitable).length}</strong></span>
               </div>
             </div>
-            <PairMatrix opportunities={opportunities} />
+            <PairMatrix />
           </section>
         )}
 
         {activeTab === 'journal' && (
           <section className="content-section">
-            <TradeJournal opportunities={opportunities} />
+            <TradeJournal />
+          </section>
+        )}
+
+        {activeTab === 'execute' && (
+          <section className="content-section">
+            <ExecutionPanel />
           </section>
         )}
 
@@ -154,7 +180,7 @@ function App() {
 
       {/* Footer */}
       <footer className="app-footer">
-        <span>Mainnet | Alchemy RPC | Geyser + Fallback | Jito Ready</span>
+        <span>🟢 Solana Arbitrage Engine v1.0.5 | Mainnet Ready | Jito MEV Protection</span>
       </footer>
     </div>
   )
